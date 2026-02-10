@@ -1,97 +1,143 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Restaurant Billing & Staff Communication System
 
-# Getting Started
+A real-time React Native application designed to facilitate seamless communication between restaurant staff and a central billing system using a hybrid local-cloud architecture.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Overview
 
-## Step 1: Start Metro
+This mobile application enables restaurant staff to receive real-time alerts from the kitchen, manage customer billing, and access cloud-based loyalty information. The system uses a hybrid architecture that combines local Socket.io connections for low-latency alerts with cloud-based APIs for business operations.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Features
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+- **Real-time Staff Alerts**: Receive instant notifications when orders are ready or table service is required
+- **Background Notifications**: Handle alerts even when the app is minimized or the device is locked
+- **Customer Loyalty Integration**: Check customer loyalty points and status via cloud API
+- **Offline-First Design**: Local socket connections ensure reliability independent of internet connectivity
+- **Billing Management**: Process payments and update billing records
 
-```sh
-# Using npm
-npm start
+## Technical Stack
 
-# OR using Yarn
-yarn start
+### Core Libraries
+
+| Library | Purpose |
+|---------|---------|
+| **socket.io-client** | Bi-directional real-time communication with local restaurant server |
+| **@notifee/react-native** | High-priority local and background notifications |
+| **axios** | HTTP client for cloud API communication |
+
+### Technology Breakdown
+
+#### 1. Socket.io-client
+- **Use Case**: Low-latency communication between waiters and kitchen
+- **Function**: Maintains persistent connection to local restaurant server for "Order Ready" and "Table Service" events
+- **Advantage**: Works independently of external internet stability
+
+#### 2. @notifee/react-native
+- **Use Case**: Comprehensive notification management
+- **Function**: 
+  - Creates high-priority notification channels
+  - Wakes device for critical alerts
+  - Displays alerts over other applications
+  - Handles background events for in-notification interactions
+
+#### 3. Axios
+- **Use Case**: Cloud-based business operations
+- **Function**:
+  - Fetch customer loyalty points
+  - Update billing records
+  - Process final payments
+  - Non-real-time data operations
+
+## Architecture
+
+### Hybrid Architecture Model
+
+```
+┌─────────────────────────────────────────────┐
+│           Mobile Application                │
+├─────────────────────────────────────────────┤
+│  Local Communication  │  Cloud Operations   │
+│    (Socket.io)        │     (Axios)         │
+└──────────┬────────────┴──────────┬──────────┘
+           │                       │
+           ▼                       ▼
+  ┌────────────────┐      ┌───────────────┐
+  │ Local Server   │      │  Cloud API    │
+  │ (Restaurant)   │      │  (Central DB) │
+  └────────────────┘      └───────────────┘
 ```
 
-## Step 2: Build and run your app
+## Project Structure
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+```
+restaurant-billing-app/
+│
+├── src/
+│   ├── config/
+│   │   └── env.js                    # Environment variables (Socket URLs, API endpoints)
+│   │
+│   ├── api/
+│   │   └── apiClient.js              # Centralized Axios instance for cloud API
+│   │
+│   ├── context/
+│   │   └── SocketContext.js          # Socket.io connection provider
+│   │
+│   ├── services/
+│   │   └── NotifService.js           # Notification logic abstraction
+│   │
+│   └── screens/
+│       └── BillingScreen.js          # Main UI for billing and staff connectivity
+│
+├── App.tsx                            # Root component with providers
+├── index.js                           # Entry point with background event handler
+└── android/
+    └── app/src/main/
+        └── AndroidManifest.xml        # Android configuration
 ```
 
-### iOS
+### Layer Breakdown
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+#### Configuration Layer
+- **`src/config/env.js`**: Environment variables including:
+  - Local Socket URLs
+  - Cloud API base URLs
+  - Configuration constants
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+#### Logic & State Layer
+- **`src/api/apiClient.js`**: Centralized Axios instance for cloud database operations
+- **`src/context/SocketContext.js`**: React Context provider for socket connection and staff alert listeners
+- **`src/services/NotifService.js`**: Abstracted notification channel creation and alert display logic
 
-```sh
-bundle install
+#### UI Layer
+- **`src/screens/BillingScreen.js`**: Primary interface featuring:
+  - Customer phone number input
+  - Loyalty status checking
+  - Staff connectivity status display
+
+#### Entry & Native Config
+- **`index.js`**: Registers background event handler for notification interactions
+- **`AndroidManifest.xml`**: Configured with `usesCleartextTraffic` for local HTTP server communication
+
+
+## Configuration
+
+### Environment Variables (`src/config/env.js`)
+
+```javascript
+export const config = {
+  SOCKET_URL: 'http://192.168.1.100:3000',  // Local restaurant server
+  API_BASE_URL: 'CONFIGURE IT ACCORDINGLY', // Cloud API endpoint
+  // Add other configuration values
+};
 ```
 
-Then, and every time you update your native dependencies, run:
+### Android Manifest Configuration
 
-```sh
-bundle exec pod install
+```xml
+<application
+  android:usesCleartextTraffic="true"
+  ...>
+  <!-- Allows HTTP communication with local servers -->
+</application>
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
 
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
