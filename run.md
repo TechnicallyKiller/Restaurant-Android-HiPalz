@@ -1,4 +1,4 @@
-
+# Run Guide
 
 ## Prerequisites
 
@@ -10,6 +10,8 @@ Before starting, ensure your Windows machine has the following installed:
 | **JDK** | 17 | Required for React Native 0.83 |
 | **Android Studio** | Latest | Android development environment |
 | **Android SDK Platform** | 34 (Android 14) | Target platform for the app |
+
+---
 
 ## Installation Steps
 
@@ -27,7 +29,6 @@ cd android
 cd ..
 ```
 
-
 ### Step 2: Environment Verification
 
 Run the React Native diagnostics tool to verify your setup:
@@ -40,9 +41,9 @@ npx react-native doctor
 
 **If errors appear**:
 - Press `f` to allow automatic fixes
-- Ensure Android SDK version  and JDK  are properly configured
+- Ensure Android SDK version and JDK are properly configured
 
-
+---
 
 ## Launching the Application
 
@@ -61,11 +62,11 @@ npx react-native doctor
 2. **Connect Device**:
    ```powershell
    # Connect phone via USB cable
-   
+
    # Verify connection
    adb devices
    ```
-   
+
    **Expected output**:
    ```
    List of devices attached
@@ -94,6 +95,8 @@ npx react-native doctor
    ```powershell
    npx react-native run-android
    ```
+
+---
 
 ## Local Network Configuration (Offline Testing)
 
@@ -150,6 +153,8 @@ Socket.io server running on port 3000
 # On computer, test if server is accessible
 curl http://192.168.1.50:3000
 ```
+
+---
 
 ## Troubleshooting
 
@@ -254,6 +259,130 @@ cd ..
 - Shake device or press `R` twice to manually reload
 - Press `D` for developer menu
 
+---
+
+## 7. Production Build Commands (Android)
+
+When your client is ready to move from testing to a real restaurant deployment, they need an APK (for direct install) or an AAB (for Google Play).
+
+### Generate Debug APK (For Quick Testing on Other Phones)
+
+This creates an installable file that doesn't require a computer connection.
+
+```powershell
+cd android
+.\gradlew assembleDebug
+cd ..
+```
+
+- **File Path**: `android/app/build/outputs/apk/debug/app-debug.apk`
+
+### Generate Release APK (For Production)
+
+This version is optimized for performance and smaller file size.
+
+```powershell
+cd android
+.\gradlew assembleRelease
+cd ..
+```
+
+- **File Path**: `android/app/build/outputs/apk/release/app-release.apk`
+
+### Generate Android App Bundle (AAB)
+
+Required for uploading the app to the Google Play Store.
+
+```powershell
+cd android
+.\gradlew bundleRelease
+cd ..
+```
+
+- **File Path**: `android/app/build/outputs/bundle/release/app-release.aab`
+
+---
+
+## 8. iOS Setup & Commands (Mac Required)
+
+While you are on Windows, your client may want to run this on iPhones.
+
+> **Note**: iOS builds require a computer running macOS and Xcode.
+
+### Prerequisites for iOS
+
+| Requirement | Details |
+|-------------|---------|
+| **macOS** | Latest version |
+| **Xcode** | Version 15+ |
+| **CocoaPods** | Dependency manager for iOS |
+| **Homebrew** | To install system tools |
+
+### iOS Installation Steps
+
+```bash
+# 1. Install iOS dependencies (Run from project root)
+npm install
+
+# 2. Install Native Pods
+cd ios
+bundle install   # If Gemfile exists
+pod install
+cd ..
+```
+
+### Launching on iOS
+
+```bash
+# Launch on iPhone Simulator
+npx react-native run-ios
+
+# Launch on a specific simulator (e.g., iPhone 15)
+npx react-native run-ios --simulator="iPhone 15"
+```
+
+---
+
+## 9. Advanced Troubleshooting & Maintenance
+
+### Deep Clean (The "Nuke" Option)
+
+If the project becomes unstable or paths are corrupted, use this to reset everything.
+
+```powershell
+# Windows (PowerShell)
+rmdir /s /q node_modules
+rmdir /s /q android\app\build
+rmdir /s /q android\build
+npm install
+cd android
+.\gradlew clean
+cd ..
+```
+
+### Updating Native Modules
+
+If you add a new library (like a different camera or printer driver), you must rebuild the native code.
+
+```powershell
+# Rebuild and launch
+npx react-native run-android
+```
+
+---
+
+## 10. Summary of File Responsibilities
+
+| File | Responsibility | Connection Type |
+|------|---------------|-----------------|
+| `server.js` | Wireless Hub: Manages all kitchen/waiter traffic. | Offline (Wi-Fi) |
+| `env.js` | Config: Sets the IP for the local Hub and Cloud API. | Static Config |
+| `SocketContext.js` | Live Engine: Maintains the wireless staff connection. | Real-time |
+| `NotifService.js` | Alerts: Triggers physical phone sound and vibration. | Native UI |
+| `apiClient.js` | Data: Syncs loyalty and billing with the cloud. | Online (HTTPS) |
+
+---
+
 ## Quick Reference Commands
 
 ```powershell
@@ -278,13 +407,20 @@ adb devices
 # Find IP address
 ipconfig
 
+# Debug APK
+cd android && .\gradlew assembleDebug && cd ..
 
+# Release APK
+cd android && .\gradlew assembleRelease && cd ..
+
+# Release AAB (Play Store)
+cd android && .\gradlew bundleRelease && cd ..
 ```
 
+---
 
 ## Support & Resources
 
 - **React Native Docs**: https://reactnative.dev/docs/environment-setup
 - **Android Studio**: https://developer.android.com/studio
 - **Socket.io**: https://socket.io/docs/v4/
-
