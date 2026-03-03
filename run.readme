@@ -1,0 +1,96 @@
+# HiPalz Restaurant Terminal - Run Guide
+
+This guide contains everything you need to set up, build, and run the HiPalz Restaurant Terminal Android application.
+
+## 🛠️ Required Tools
+
+Before starting, ensure your machine has the following installed:
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| **Node.js** | 20+ | JavaScript runtime |
+| **JDK** | 17 | Required for React Native 0.83+ |
+| **Android Studio** | Latest | Android development environment |
+| **React Native CLI** | Latest | Management of the mobile app |
+
+---
+
+## 🚀 Getting Started
+
+### 1. Install Dependencies
+Navigate to the project root and run:
+```powershell
+npm install
+```
+
+### 2. Verify Environment
+Run the React Native doctor to ensure your SDKs and JDK are correctly configured:
+```powershell
+npx react-native doctor
+```
+
+### 3. Clean Build Cache (Optional but Recommended)
+If you encounter build errors, clean the Gradle cache:
+```powershell
+cd android
+.\gradlew clean
+cd ..
+```
+
+---
+
+## 📱 Running the App
+
+### Option A: Physical Android Device (Recommended)
+1. Connect your device via USB.
+2. Enable **USB Debugging** in Developer Options.
+3. Verify connection: `adb devices`.
+4. Run the app:
+```powershell
+npx react-native run-android
+```
+
+### Option B: Android Emulator
+1. Open Android Studio → Device Manager.
+2. Start your Virtual Device (API Level 34+ recommended).
+3. Run the app:
+```powershell
+npx react-native run-android
+```
+
+---
+
+## 🔍 Server Discovery (New Feature)
+
+The app now features an **Automatic Server Discovery** mechanism. You no longer need to manually configure IP addresses in the code.
+
+1. **Wait for Scan**: On the "Welcome Screen", the app will automatically scan your local network for the HiPalz server.
+2. **Ensure Network**: Make sure your phone/emulator is on the **same Wi-Fi network** as the server.
+3. **Connection**: Once found, the server URL will be displayed, and you can enter the terminal.
+4. **Logging**: All scan attempts are logged in the console for debugging. Look for `[Discovery]` tags.
+
+---
+
+## 📦 Production Builds
+
+### Generate Debug APK
+```powershell
+cd android
+.\gradlew assembleDebug
+```
+*Output: `android/app/build/outputs/apk/debug/app-debug.apk`*
+
+### Generate Release APK
+```powershell
+cd android
+.\gradlew assembleRelease
+```
+*Output: `android/app/build/outputs/apk/release/app-release.apk`*
+
+---
+
+## 🛠️ Troubleshooting
+
+- **Metro Not Connecting**: Run `npx react-native start --reset-cache`.
+- **Java/SDK Paths**: Ensure `JAVA_HOME` and `ANDROID_HOME` are set in your System Environment Variables.
+- **Port 3333**: Ensure the HiPalz server is running on port 3333 and not blocked by a firewall.

@@ -1,0 +1,1 @@
+{"root":["./src/api/apiclient.ts","./src/config/env.ts","./src/services/connection.ts","./app.tsx","./__tests__/app.test.tsx","./src/screens/welcomescreen.tsx","./src/services/notifservice.tsx"],"version":"5.9.3"}

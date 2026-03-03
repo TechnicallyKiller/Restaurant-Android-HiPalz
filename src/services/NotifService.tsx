@@ -1,10 +1,10 @@
 import notifee, { AndroidImportance } from '@notifee/react-native';
 
-export const triggerStaffAlert = async (title, body) => {
+export const triggerStaffAlert = async (title: string, body: string) => {
   const channelId = await notifee.createChannel({
     id: 'staff_notifications',
     name: 'Staff Alerts',
-    importance: AndroidImportance.HIGH, 
+    importance: AndroidImportance.HIGH,
   });
 
   await notifee.displayNotification({

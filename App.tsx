@@ -1,12 +1,8 @@
-import { SocketProvider } from './src/context/SocketContext';
-import BillingScreen from './src/screens/BillingScreen';
+import React from 'react';
+import WelcomeScreen from './src/screens/WelcomeScreen';
 
 const App = () => {
-  return (
-    <SocketProvider>
-       <BillingScreen />
-    </SocketProvider>
-  );
+  return <WelcomeScreen />;
 };
 
 export default App;
