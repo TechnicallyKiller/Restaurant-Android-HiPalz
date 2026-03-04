@@ -8,37 +8,76 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
-import { findServerConnection } from '../services/connection';
+import { findServerConnection, pingIp } from '../services/connection';
 import { setDynamicBaseUrl } from '../config/env';
 import { updateApiClientBaseUrl } from '../api/apiClient';
 import { NetworkInfo } from 'react-native-network-info';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const WelcomeScreen = () => {
-  const [status, setStatus] = useState<'scanning' | 'found' | 'not_found'>(
-    'scanning',
-  );
   const [serverIp, setServerIp] = useState('');
+  const [deviceIp, setDeviceIp] = useState('');
+  const [status, setStatus] = useState('scanning'); // Added status state
 
   const startScan = async () => {
     setStatus('scanning');
 
-    let deviceIp: string | undefined = undefined;
+    // 1. Detect device IP first as requested
+    let detectedIp: string | undefined = undefined;
     try {
       const ip = await NetworkInfo.getIPV4Address();
       if (ip && ip !== '0.0.0.0' && ip !== '127.0.0.1') {
-        deviceIp = ip;
-        console.log('[Welcome] Detected device IP:', deviceIp);
+        detectedIp = ip;
+        setDeviceIp(ip);
+        console.log('[Welcome] Detected device IP:', detectedIp);
       }
     } catch (error) {
       console.log('[Welcome] Could not detect device IP:', error);
     }
 
-    const result = await findServerConnection(deviceIp);
+    // 2. Try to get saved server IP
+    try {
+      const savedIp = await AsyncStorage.getItem('SERVER_URL');
+      if (savedIp) {
+        console.log('[Welcome] Found saved server IP:', savedIp);
+        // Extract IP without port if needed, but pingIp takes ip:port string if we pass it as ip
+        // Actually pingIp(ip, port) - if savedIp is "192.168.1.5:3333", we should split it.
+        const [ip, portStr] = savedIp.split(':');
+        const port = portStr ? parseInt(portStr, 10) : 3333;
+
+        const testResult = await pingIp(ip, port);
+        if (testResult.success) {
+          console.log('[Welcome] Saved server is still alive!');
+          setServerIp(testResult.ip);
+          setDynamicBaseUrl(`http://${testResult.ip}`);
+          updateApiClientBaseUrl(`http://${testResult.ip}`);
+          setStatus('found');
+          return;
+        }
+        console.log(
+          '[Welcome] Saved server not responding, starting full scan...',
+        );
+      }
+    } catch (e) {
+      console.log('[Welcome] Error reading saved IP:', e);
+    }
+
+    // 3. Fallback to full discovery using detected device IP for subnet priority
+    const result = await findServerConnection(detectedIp);
 
     if (result.success) {
       setServerIp(result.ip);
       setDynamicBaseUrl(`http://${result.ip}`);
       updateApiClientBaseUrl(`http://${result.ip}`);
+
+      // Save for next time
+      try {
+        await AsyncStorage.setItem('SERVER_URL', result.ip);
+        console.log('[Welcome] Saved server IP to storage:', result.ip);
+      } catch (e) {
+        console.log('[Welcome] Failed to save server IP:', e);
+      }
+
       setStatus('found');
     } else {
       console.log('[Welcome] Server search failed or timed out.');
@@ -67,6 +106,9 @@ const WelcomeScreen = () => {
               <Text style={styles.subStatusText}>
                 Please ensure you are on the restaurant Wi-Fi
               </Text>
+              {deviceIp ? (
+                <Text style={styles.deviceIpText}>Device IP: {deviceIp}</Text>
+              ) : null}
             </>
           )}
 
@@ -226,6 +268,12 @@ const styles = StyleSheet.create({
   footerText: {
     color: '#475569',
     fontSize: 12,
+  },
+  deviceIpText: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 15,
+    fontFamily: 'monospace',
   },
 });
 

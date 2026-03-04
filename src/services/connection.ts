@@ -4,7 +4,7 @@
 /**
  * Pings a specific IP to see if the server is running there.
  */
-async function pingIp(
+export async function pingIp(
   ip: string,
   port = 3333,
   timeoutMs = 1500,
