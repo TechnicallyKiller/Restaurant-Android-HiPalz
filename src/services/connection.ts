@@ -7,7 +7,7 @@
 export async function pingIp(
   ip: string,
   port = 3333,
-  timeoutMs = 1500,
+  timeoutMs = 800, // Reduced from 1500 for faster local discovery
 ): Promise<{ ip: string; success: boolean }> {
   const url = `http://${ip}:${port}/ping`;
   console.log(`[Discovery] Pinging: ${url}...`);
@@ -38,30 +38,30 @@ export async function pingIp(
  * We launch blocks of IPs in parallel and use Promise.any to immediately
  * resolve when we get the first successful ping, making it lightning fast.
  */
-async function scanIpsInChunks(
+/**
+ * Sweeps an array of IPs using a "Fast Sweep" concurrent method.
+ * Unlike the previous chunked method, this fires pings with a small stagger
+ * and uses Promise.any to resolve as soon as the first successful IP is found.
+ */
+async function fastParallelScan(
   ips: string[],
-  chunkSize = 40,
 ): Promise<{ ip: string; success: boolean } | null> {
-  // Use a chunked parallel approach
-  for (let i = 0; i < ips.length; i += chunkSize) {
-    const chunk = ips.slice(i, i + chunkSize);
+  // Fire all pings but with a tiny stagger (e.g. 5ms) to avoid network congestion
+  // Promise.any will return the FIRST successful result immediately.
+  try {
+    const promises = ips.map(async (ip, index) => {
+      // Small delay based on index to spread the load
+      await new Promise(resolve => setTimeout(() => resolve(null), index * 5));
+      const result = await pingIp(ip);
+      if (result.success) return result;
+      throw new Error('fail'); // Reject so Promise.any ignores it
+    });
 
-    try {
-      // Promise.any returns as soon as ONE promise resolves.
-      // If none resolve, it throws an AggregateError.
-      const winner = await Promise.any(
-        chunk.map(async ip => {
-          const result = await pingIp(ip);
-          if (result.success) return result;
-          throw new Error('fail'); // Reject so Promise.any ignores it
-        }),
-      );
-      if (winner) return winner;
-    } catch (e) {
-      // All IPs in this chunk failed, move to the next "binary chunk"
-    }
+    return await Promise.any(promises);
+  } catch (e) {
+    // This happens only if every single IP in the list fails
+    return null;
   }
-  return null;
 }
 
 /**
@@ -129,7 +129,7 @@ export async function findServerConnection(
   // and search concurrently to rapidly jump through the 192.168.x.x list until we hit a "pong".
   // Race the scan against the global timeout
   const result = await Promise.race([
-    scanIpsInChunks(possibleIps, 50),
+    fastParallelScan(possibleIps),
     timeoutPromise,
   ]);
 
