@@ -16,6 +16,7 @@
     "axios": "^1.13.6",
     "react": "19.2.0",
     "react-native": "0.83.1",
+    "react-native-network-info": "^5.2.2",
     "react-native-safe-area-context": "^5.5.2"
   },
   "devDependencies": {

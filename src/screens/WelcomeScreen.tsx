@@ -11,6 +11,7 @@ import {
 import { findServerConnection } from '../services/connection';
 import { setDynamicBaseUrl } from '../config/env';
 import { updateApiClientBaseUrl } from '../api/apiClient';
+import { NetworkInfo } from 'react-native-network-info';
 
 const WelcomeScreen = () => {
   const [status, setStatus] = useState<'scanning' | 'found' | 'not_found'>(
@@ -20,9 +21,19 @@ const WelcomeScreen = () => {
 
   const startScan = async () => {
     setStatus('scanning');
-    // In a real Android app, we'd get the device IP here.
-    // For now, we'll let it scan common ranges.
-    const result = await findServerConnection();
+
+    let deviceIp: string | undefined = undefined;
+    try {
+      const ip = await NetworkInfo.getIPV4Address();
+      if (ip && ip !== '0.0.0.0' && ip !== '127.0.0.1') {
+        deviceIp = ip;
+        console.log('[Welcome] Detected device IP:', deviceIp);
+      }
+    } catch (error) {
+      console.log('[Welcome] Could not detect device IP:', error);
+    }
+
+    const result = await findServerConnection(deviceIp);
 
     if (result.success) {
       setServerIp(result.ip);
