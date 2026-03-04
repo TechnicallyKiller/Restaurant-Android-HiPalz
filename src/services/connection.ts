@@ -7,13 +7,19 @@
 export async function pingIp(
   ip: string,
   port = 3333,
-  timeoutMs = 800, // Reduced from 1500 for faster local discovery
+  timeoutMs = 800,
+  signal?: AbortSignal,
 ): Promise<{ ip: string; success: boolean }> {
   const url = `http://${ip}:${port}/ping`;
-  console.log(`[Discovery] Pinging: ${url}...`);
   try {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
+
+    // If external signal is aborted, abort our local fetch too
+    if (signal) {
+      signal.addEventListener('abort', () => controller.abort());
+    }
+
     const response = await fetch(url, {
       signal: controller.signal,
       method: 'GET',
@@ -39,29 +45,52 @@ export async function pingIp(
  * resolve when we get the first successful ping, making it lightning fast.
  */
 /**
- * Sweeps an array of IPs using a "Fast Sweep" concurrent method.
- * Unlike the previous chunked method, this fires pings with a small stagger
- * and uses Promise.any to resolve as soon as the first successful IP is found.
+ * Sweeps an array of IPs using a "Throttled Window" concurrent method.
+ * Maintains a fixed pool of active pings, refills as they finish,
+ * and immediately aborts all others when a server is found.
  */
-async function fastParallelScan(
+async function throttledParallelScan(
   ips: string[],
+  concurrency = 50,
 ): Promise<{ ip: string; success: boolean } | null> {
-  // Fire all pings but with a tiny stagger (e.g. 5ms) to avoid network congestion
-  // Promise.any will return the FIRST successful result immediately.
-  try {
-    const promises = ips.map(async (ip, index) => {
-      // Small delay based on index to spread the load
-      await new Promise(resolve => setTimeout(() => resolve(null), index * 5));
-      const result = await pingIp(ip);
-      if (result.success) return result;
-      throw new Error('fail'); // Reject so Promise.any ignores it
-    });
+  const controller = new AbortController();
+  let foundResult: { ip: string; success: boolean } | null = null;
+  let currentIndex = 0;
 
-    return await Promise.any(promises);
-  } catch (e) {
-    // This happens only if every single IP in the list fails
-    return null;
-  }
+  console.log(
+    `[Discovery] Scanning ${ips.length} IPs with window size ${concurrency}...`,
+  );
+
+  const worker = async () => {
+    while (
+      currentIndex < ips.length &&
+      !foundResult &&
+      !controller.signal.aborted
+    ) {
+      const ip = ips[currentIndex++];
+      if (!ip) break;
+
+      try {
+        const result = await pingIp(ip, 3333, 800, controller.signal);
+        if (result.success && !foundResult) {
+          foundResult = result;
+          controller.abort(); // KILL all other "zombie" requests immediately
+          return;
+        }
+      } catch (err) {
+        // Skip errors/aborts
+      }
+    }
+  };
+
+  // Launch initial batch of workers
+  const pool = Array.from(
+    { length: Math.min(concurrency, ips.length) },
+    worker,
+  );
+  await Promise.all(pool);
+
+  return foundResult;
 }
 
 /**
@@ -126,10 +155,9 @@ export async function findServerConnection(
 
   // You wanted a "binary search method to iterate over ip"
   // Instead of scanning sequentially which takes forever, we batch them in chunks of 50
-  // and search concurrently to rapidly jump through the 192.168.x.x list until we hit a "pong".
-  // Race the scan against the global timeout
+  // Use Throttled Window to protect resources and kill zombies
   const result = await Promise.race([
-    fastParallelScan(possibleIps),
+    throttledParallelScan(possibleIps, 60),
     timeoutPromise,
   ]);
 
