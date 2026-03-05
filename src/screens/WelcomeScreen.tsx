@@ -1,93 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
 } from 'react-native';
-import { findServerConnection, pingIp } from '../services/connection';
-import { setDynamicBaseUrl } from '../config/env';
-import { updateApiClientBaseUrl } from '../api/apiClient';
-import { NetworkInfo } from 'react-native-network-info';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { FIXED_SERVER_BASE_URL } from '../config/env';
+import type { RootStackParamList } from '../navigation/types';
+
+type WelcomeNav = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
 
 const WelcomeScreen = () => {
-  const [serverIp, setServerIp] = useState('');
-  const [deviceIp, setDeviceIp] = useState('');
-  const [status, setStatus] = useState('scanning'); // Added status state
+  const navigation = useNavigation<WelcomeNav>();
 
-  const startScan = async () => {
-    setStatus('scanning');
-
-    // 1. Detect device IP first as requested
-    let detectedIp: string | undefined = undefined;
-    try {
-      const ip = await NetworkInfo.getIPV4Address();
-      if (ip && ip !== '0.0.0.0' && ip !== '127.0.0.1') {
-        detectedIp = ip;
-        setDeviceIp(ip);
-        console.log('[Welcome] Detected device IP:', detectedIp);
-      }
-    } catch (error) {
-      console.log('[Welcome] Could not detect device IP:', error);
-    }
-
-    // 2. Try to get saved server IP
-    try {
-      const savedIp = await AsyncStorage.getItem('SERVER_URL');
-      if (savedIp) {
-        console.log('[Welcome] Found saved server IP:', savedIp);
-        // Extract IP without port if needed, but pingIp takes ip:port string if we pass it as ip
-        // Actually pingIp(ip, port) - if savedIp is "192.168.1.5:3333", we should split it.
-        const [ip, portStr] = savedIp.split(':');
-        const port = portStr ? parseInt(portStr, 10) : 3333;
-
-        const testResult = await pingIp(ip, port);
-        if (testResult.success) {
-          console.log('[Welcome] Saved server is still alive!');
-          setServerIp(testResult.ip);
-          setDynamicBaseUrl(`http://${testResult.ip}`);
-          updateApiClientBaseUrl(`http://${testResult.ip}`);
-          setStatus('found');
-          return;
-        }
-        console.log(
-          '[Welcome] Saved server not responding, starting full scan...',
-        );
-      }
-    } catch (e) {
-      console.log('[Welcome] Error reading saved IP:', e);
-    }
-
-    // 3. Fallback to full discovery using detected device IP for subnet priority
-    const result = await findServerConnection(detectedIp);
-
-    if (result.success) {
-      setServerIp(result.ip);
-      setDynamicBaseUrl(`http://${result.ip}`);
-      updateApiClientBaseUrl(`http://${result.ip}`);
-
-      // Save for next time
-      try {
-        await AsyncStorage.setItem('SERVER_URL', result.ip);
-        console.log('[Welcome] Saved server IP to storage:', result.ip);
-      } catch (e) {
-        console.log('[Welcome] Failed to save server IP:', e);
-      }
-
-      setStatus('found');
-    } else {
-      console.log('[Welcome] Server search failed or timed out.');
-      setStatus('not_found');
-    }
+  const handleEnterTerminal = () => {
+    navigation.replace('Login');
   };
-
-  useEffect(() => {
-    startScan();
-  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -97,52 +29,15 @@ const WelcomeScreen = () => {
         <Text style={styles.title}>Restaurant Terminal</Text>
 
         <View style={styles.statusCard}>
-          {status === 'scanning' && (
-            <>
-              <ActivityIndicator size="large" color="#FFD700" />
-              <Text style={styles.statusText}>
-                Searching for local server...
-              </Text>
-              <Text style={styles.subStatusText}>
-                Please ensure you are on the restaurant Wi-Fi
-              </Text>
-              {deviceIp ? (
-                <Text style={styles.deviceIpText}>Device IP: {deviceIp}</Text>
-              ) : null}
-            </>
-          )}
-
-          {status === 'found' && (
-            <>
-              <View style={styles.successIcon}>
-                <Text style={styles.check}>✓</Text>
-              </View>
-              <Text style={styles.statusText}>Connected to Server</Text>
-              <Text style={styles.ipLabel}>Server URL:</Text>
-              <Text style={styles.ipText}>{serverIp}</Text>
-              <TouchableOpacity style={styles.button} onPress={() => {}}>
-                <Text style={styles.buttonText}>Enter Terminal</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {status === 'not_found' && (
-            <>
-              <View style={styles.errorIcon}>
-                <Text style={styles.cross}>×</Text>
-              </View>
-              <Text style={styles.statusText}>Server Not Found</Text>
-              <Text style={styles.subStatusText}>
-                Could not detect HiPalz server on this network.
-              </Text>
-              <TouchableOpacity
-                style={[styles.button, styles.retryButton]}
-                onPress={startScan}
-              >
-                <Text style={styles.buttonText}>Retry Scan</Text>
-              </TouchableOpacity>
-            </>
-          )}
+          <View style={styles.successIcon}>
+            <Text style={styles.check}>✓</Text>
+          </View>
+          <Text style={styles.statusText}>Connected to Server</Text>
+          <Text style={styles.ipLabel}>Server URL:</Text>
+          <Text style={styles.ipText}>{FIXED_SERVER_BASE_URL}</Text>
+          <TouchableOpacity style={styles.button} onPress={handleEnterTerminal}>
+            <Text style={styles.buttonText}>Enter Terminal</Text>
+          </TouchableOpacity>
         </View>
       </View>
       <View style={styles.footer}>
@@ -198,12 +93,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
   },
-  subStatusText: {
-    fontSize: 14,
-    color: '#94A3B8',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
   ipLabel: {
     fontSize: 12,
     color: '#94A3B8',
@@ -231,19 +120,6 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: 'bold',
   },
-  errorIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#DC2626',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cross: {
-    color: '#FFFFFF',
-    fontSize: 40,
-    fontWeight: 'bold',
-  },
   button: {
     backgroundColor: '#FFD700',
     paddingVertical: 16,
@@ -251,10 +127,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: '100%',
     alignItems: 'center',
-  },
-  retryButton: {
-    backgroundColor: '#334155',
-    marginTop: 20,
   },
   buttonText: {
     color: '#0F172A',
@@ -268,12 +140,6 @@ const styles = StyleSheet.create({
   footerText: {
     color: '#475569',
     fontSize: 12,
-  },
-  deviceIpText: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 15,
-    fontFamily: 'monospace',
   },
 });
 

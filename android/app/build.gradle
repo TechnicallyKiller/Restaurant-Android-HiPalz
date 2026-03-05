@@ -74,8 +74,12 @@ def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 android {
     ndkVersion rootProject.ext.ndkVersion
-    buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
+
+    // Wait longer for emulator to finish booting before install (fixes "device is still booting")
+    adbOptions {
+        timeOutInMs = 120000
+    }
 
     namespace "com.restauranttemplate"
     defaultConfig {
