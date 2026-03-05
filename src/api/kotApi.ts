@@ -47,3 +47,11 @@ export async function deleteKotItems(
   );
   return parseApiResponse(res);
 }
+
+export async function reprintKot(kotId: string): Promise<{ success: boolean }> {
+  const res = await apiClient.post<ApiResponse<{ success: boolean }>>(
+    '/r/dine-in/kots/reprint',
+    { kotId },
+  );
+  return parseApiResponse(res);
+}

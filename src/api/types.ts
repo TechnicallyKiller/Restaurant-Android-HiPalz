@@ -288,6 +288,7 @@ export interface BillPreviewData {
   splitType?: string;
   status?: string;
   paymentMethod?: string | null;
+  tableName?: string;
 }
 
 export interface BillTableEntry {
@@ -355,6 +356,23 @@ export interface SplitSettleResult {
   allPaid: boolean;
 }
 
+export interface ClubSplitsPayload {
+  parentBillId: string;
+  staffId: string;
+}
+
+export interface BillTipAddPayload {
+  billId: string;
+  amount: number;
+  staffId: string;
+}
+
+export interface BillTipRemovePayload {
+  billId: string;
+  staffId: string;
+  reason: string;
+}
+
 // ----- Table & KOT operations -----
 export interface TransferKotPayload {
   outletId: string;
@@ -400,10 +418,17 @@ export interface CreateTableInstanceResponse {
 }
 
 export interface InstancedBillItem {
-  billId: string;
+  /** Bill ID — used to open the instance and load bill details (backend may send as `id` or `billId`) */
+  id?: string;
+  billId?: string;
   orderId?: string;
   tableId?: string;
   tableName?: string;
+  areaType?: string;
+  userName?: string;
+  userPhone?: string;
+  captainName?: string;
+  captainPhone?: string;
   payable?: number;
   createdAt?: number;
   [key: string]: unknown;

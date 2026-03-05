@@ -45,17 +45,16 @@ export const usePosStore = create<PosState>((set, get) => ({
 
   recomputeFilteredItems: () => {
     const { items, selectedCategoryId, itemSearchQuery } = get();
+    const q = itemSearchQuery.trim().toLowerCase();
     let list = items;
-    if (selectedCategoryId) {
-      list = list.filter(i => i.categoryId === selectedCategoryId);
-    }
-    if (itemSearchQuery.trim()) {
-      const q = itemSearchQuery.trim().toLowerCase();
+    if (q) {
       list = list.filter(
         i =>
           i.name.toLowerCase().includes(q) ||
           (i.description ?? '').toLowerCase().includes(q),
       );
+    } else if (selectedCategoryId) {
+      list = list.filter(i => i.categoryId === selectedCategoryId);
     }
     set({ filteredItems: list });
   },

@@ -106,18 +106,24 @@ const TablesScreen = ({ navigation }: Props) => {
       {(instances ?? []).length > 0 && (
         <View style={styles.instancesSection}>
           <Text style={styles.instancesSectionTitle}>Table instances</Text>
-          {(instances ?? []).slice(0, 5).map(inst => (
-            <TouchableOpacity
-              key={inst.billId ?? ''}
-              style={styles.instanceCard}
-              onPress={() => setInstanceBillId(inst.billId ?? null)}
-            >
-              <Text style={styles.instanceCardTitle}>Bill {(inst.billId ?? '').slice(0, 8)}…</Text>
-              <Text style={styles.instanceCardSub}>
-                {inst.tableName ?? 'Table'} — ₹{inst.payable?.toFixed(0) ?? '0'}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <Text style={styles.instancesSectionSubtitle}>
+            Tables freed for new orders with an open bill. Click to continue billing.
+          </Text>
+          {(instances ?? []).map((inst, index) => {
+            const billId = inst.id ?? inst.billId ?? '';
+            return (
+              <TouchableOpacity
+                key={billId || `instance-${index}`}
+                style={styles.instanceCard}
+                onPress={() => billId && setInstanceBillId(billId)}
+              >
+                <Text style={styles.instanceCardTitle}>{inst.tableName ?? 'Table'}</Text>
+                <Text style={styles.instanceCardSub}>
+                  {inst.captainName ? `${inst.captainName} · ` : ''}₹{inst.payable?.toFixed(0) ?? '0'}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
 
@@ -205,7 +211,8 @@ const styles = StyleSheet.create({
   },
   startTableBtnText: { color: '#0F172A', fontWeight: '700', fontSize: 14 },
   instancesSection: { marginBottom: 16 },
-  instancesSectionTitle: { fontSize: 14, fontWeight: '600', color: '#94A3B8', marginBottom: 8 },
+  instancesSectionTitle: { fontSize: 14, fontWeight: '600', color: '#94A3B8', marginBottom: 4 },
+  instancesSectionSubtitle: { fontSize: 12, color: '#64748B', marginBottom: 10 },
   instanceCard: { backgroundColor: '#1E293B', borderRadius: 10, padding: 12, marginBottom: 8 },
   instanceCardTitle: { fontSize: 14, fontWeight: '700', color: '#F8FAFC' },
   instanceCardSub: { fontSize: 12, color: '#94A3B8', marginTop: 4 },

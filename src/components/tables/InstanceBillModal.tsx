@@ -9,13 +9,17 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { getBillById, payBill, getPaymentModes } from '../../api';
+import { getBillById, getPaymentModes, printBill, clubSplits, getSplitsByBillId } from '../../api';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/errorHandling';
 import BillDiscountModal from '../bill/BillDiscountModal';
 import BillServiceChargeModal from '../bill/BillServiceChargeModal';
 import BillExtrasModal from '../bill/BillExtrasModal';
-import type { BillPreviewData, BillPayModeBackend } from '../../api/types';
+import AddTipModal from '../bill/AddTipModal';
+import SplitBillModal from '../bill/SplitBillModal';
+import SettleModal from '../bill/SettleModal';
+import BillSummary from '../bill/BillSummary';
+import type { BillPreviewData } from '../../api/types';
 
 interface InstanceBillModalProps {
   visible: boolean;
@@ -37,11 +41,15 @@ export default function InstanceBillModal({
   const [loading, setLoading] = useState(false);
   const [modes, setModes] = useState<{ id: string; name: string }[]>([]);
   const [settleVisible, setSettleVisible] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<BillPayModeBackend | null>(null);
-  const [paying, setPaying] = useState(false);
   const [discountVisible, setDiscountVisible] = useState(false);
   const [serviceChargeVisible, setServiceChargeVisible] = useState(false);
   const [extrasVisible, setExtrasVisible] = useState(false);
+  const [tipVisible, setTipVisible] = useState(false);
+  const [splitVisible, setSplitVisible] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [variants, setVariants] = useState<BillPreviewData[] | null>(null);
+  const [selectedSplitBillId, setSelectedSplitBillId] = useState<string | null>(null);
 
   const refetchBill = async () => {
     if (!billId) return;
@@ -63,18 +71,70 @@ export default function InstanceBillModal({
     }
   }, [visible, billId]);
 
-  const handlePay = async () => {
-    if (!bill?.id || !selectedMode) return;
-    setPaying(true);
+  useEffect(() => {
+    if (bill?.isSplit && bill?.id) {
+      getSplitsByBillId(bill.id).then(setVariants);
+    } else {
+      setVariants(null);
+      setSelectedSplitBillId(null);
+    }
+  }, [bill?.id, bill?.isSplit]);
+
+  useEffect(() => {
+    if (variants?.length && selectedSplitBillId === null) {
+      const firstUnpaid = variants.find(v => v.status !== 'PAID');
+      setSelectedSplitBillId(firstUnpaid?.id ?? variants[0]?.id ?? null);
+    }
+    if (variants?.length && selectedSplitBillId && !variants.some(v => v.id === selectedSplitBillId)) {
+      setSelectedSplitBillId(variants[0]?.id ?? null);
+    }
+  }, [variants, selectedSplitBillId]);
+
+  const displayBill: BillPreviewData | null =
+    bill?.isSplit && variants?.length
+      ? variants.find(v => v.id === selectedSplitBillId) ?? variants[0] ?? null
+      : bill;
+
+  const handlePrint = async () => {
+    if (!bill?.id) return;
+    setPrinting(true);
     try {
-      await payBill({ billId: bill.id, mode: selectedMode, staffId });
-      setSettleVisible(false);
+      await printBill(bill.id);
+    } catch (err) {
+      Alert.alert('Print failed', getErrorMessage(err));
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const handleMergeBill = async () => {
+    if (!bill?.id) return;
+    setMerging(true);
+    try {
+      await clubSplits({ parentBillId: bill.id, staffId });
+      await refetchBill();
+    } catch (err) {
+      Alert.alert('Merge failed', getErrorMessage(err));
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  const handleSettled = async (allPaid?: boolean) => {
+    setSettleVisible(false);
+    if (allPaid === true) {
       onSettled?.();
       onClose();
-    } catch (err) {
-      Alert.alert('Payment failed', getErrorMessage(err));
-    } finally {
-      setPaying(false);
+      return;
+    }
+    await refetchBill();
+    if (bill?.isSplit && bill?.id) {
+      const v = await getSplitsByBillId(bill.id);
+      setVariants(v);
+      if (v.length > 0 && v.every(x => x.status === 'PAID')) {
+        onSettled?.();
+        onClose();
+      }
     }
   };
 
@@ -86,7 +146,7 @@ export default function InstanceBillModal({
         <View style={styles.overlay}>
           <View style={styles.sheet}>
             <View style={styles.header}>
-              <Text style={styles.title}>Instance bill</Text>
+              <Text style={styles.title}>Settle instance — {bill?.tableName ?? 'Instance'}</Text>
               <TouchableOpacity onPress={onClose}><Text style={styles.closeText}>Close</Text></TouchableOpacity>
             </View>
             {loading && !bill ? (
@@ -95,7 +155,27 @@ export default function InstanceBillModal({
               <Text style={styles.empty}>Could not load bill.</Text>
             ) : (
               <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-                {bill.items.map(item => (
+                {bill?.isSplit && variants && variants.length > 0 && (
+                  <View style={styles.variantRow}>
+                    {variants.map((v, i) => (
+                      <TouchableOpacity
+                        key={v.id ?? i}
+                        style={[
+                          styles.variantBtn,
+                          v.id === selectedSplitBillId && styles.variantBtnActive,
+                          v.status === 'PAID' && styles.variantBtnPaid,
+                        ]}
+                        onPress={() => setSelectedSplitBillId(v.id ?? null)}
+                      >
+                        <Text style={styles.variantBtnText}>
+                          Bill {i + 1} · ₹{v.payable?.toFixed(0) ?? '0'}
+                        </Text>
+                        {v.status === 'PAID' && <Text style={styles.variantPaidBadge}>Paid</Text>}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                {displayBill?.items?.map(item => (
                   <View key={item.id} style={styles.row}>
                     <Text style={styles.itemName}>{item.itemName} × {item.quantity}</Text>
                     <Text style={styles.itemPrice}>
@@ -104,71 +184,80 @@ export default function InstanceBillModal({
                   </View>
                 ))}
                 <View style={styles.divider} />
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Subtotal</Text>
-                  <Text style={styles.summaryValue}>₹{bill.subtotal.toFixed(0)}</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Tax</Text>
-                  <Text style={styles.summaryValue}>₹{bill.totalTax.toFixed(0)}</Text>
-                </View>
-                <View style={[styles.summaryRow, styles.payableRow]}>
-                  <Text style={styles.payableLabel}>Payable</Text>
-                  <Text style={styles.payableValue}>₹{bill.payable.toFixed(0)}</Text>
-                </View>
-                <View style={styles.actionRow}>
-                  <TouchableOpacity style={styles.smallBtn} onPress={() => setDiscountVisible(true)}>
-                    <Text style={styles.smallBtnText}>Discount</Text>
+                {displayBill && (
+                  <BillSummary
+                    data={displayBill}
+                    billId={displayBill.id ?? bill?.id}
+                    onRemoveDiscountClick={() => setDiscountVisible(true)}
+                    onRemoveServiceChargeClick={() => setServiceChargeVisible(true)}
+                    onRemoveTipClick={() => setTipVisible(true)}
+                    onRemoveContainerChargeClick={() => setExtrasVisible(true)}
+                    onRemoveDeliveryChargeClick={() => setExtrasVisible(true)}
+                    onAddTipClick={() => setTipVisible(true)}
+                    showAddTipButton={false}
+                  />
+                )}
+                {displayBill?.status !== 'PAID' && (
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity style={styles.smallBtn} onPress={() => setDiscountVisible(true)}>
+                      <Text style={styles.smallBtnText}>Discount</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.smallBtn} onPress={() => setServiceChargeVisible(true)}>
+                      <Text style={styles.smallBtnText}>Service charge</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.smallBtn} onPress={() => setExtrasVisible(true)}>
+                      <Text style={styles.smallBtnText}>Extras</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.smallBtn} onPress={() => setTipVisible(true)}>
+                      <Text style={styles.smallBtnText}>Add tip</Text>
+                    </TouchableOpacity>
+                    {!bill?.isSplit && (
+                      <TouchableOpacity style={styles.smallBtn} onPress={() => setSplitVisible(true)}>
+                        <Text style={styles.smallBtnText}>Split bill</Text>
+                      </TouchableOpacity>
+                    )}
+                    {bill?.isSplit && (
+                      <TouchableOpacity
+                        style={[styles.smallBtn, merging && styles.btnDisabled]}
+                        onPress={handleMergeBill}
+                        disabled={merging}
+                      >
+                        <Text style={styles.smallBtnText}>{merging ? '…' : 'Merge bill'}</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                      style={[styles.smallBtn, printing && styles.btnDisabled]}
+                      onPress={handlePrint}
+                      disabled={printing}
+                    >
+                      <Text style={styles.smallBtnText}>{printing ? '…' : 'Print'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {displayBill?.status !== 'PAID' && (
+                  <TouchableOpacity
+                    style={styles.settleBtn}
+                    onPress={() => setSettleVisible(true)}
+                  >
+                    <Text style={styles.settleBtnText}>Settle</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.smallBtn} onPress={() => setServiceChargeVisible(true)}>
-                    <Text style={styles.smallBtnText}>Service charge</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.smallBtn} onPress={() => setExtrasVisible(true)}>
-                    <Text style={styles.smallBtnText}>Extras</Text>
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity
-                  style={styles.settleBtn}
-                  onPress={() => setSettleVisible(true)}
-                >
-                  <Text style={styles.settleBtnText}>Settle</Text>
-                </TouchableOpacity>
+                )}
               </ScrollView>
             )}
           </View>
         </View>
       </Modal>
 
-      <Modal visible={settleVisible} animationType="slide" transparent>
-        <View style={styles.overlay}>
-          <View style={styles.sheet}>
-            <Text style={styles.modalTitle}>Settle — ₹{bill?.payable.toFixed(0) ?? '0'}</Text>
-            <ScrollView style={styles.modesList}>
-              {modes.map(m => (
-                <TouchableOpacity
-                  key={m.id}
-                  style={[styles.modeBtn, selectedMode === m.name && styles.modeBtnActive]}
-                  onPress={() => setSelectedMode(m.name as BillPayModeBackend)}
-                >
-                  <Text style={styles.modeBtnText}>{m.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setSettleVisible(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.confirmBtn, (!selectedMode || paying) && styles.btnDisabled]}
-                onPress={handlePay}
-                disabled={!selectedMode || paying}
-              >
-                {paying ? <ActivityIndicator color="#0F172A" size="small" /> : <Text style={styles.confirmBtnText}>Confirm pay</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <SettleModal
+        visible={settleVisible}
+        onClose={() => setSettleVisible(false)}
+        billId={displayBill?.id ?? ''}
+        payableAmount={displayBill?.payable ?? 0}
+        staffId={staffId}
+        modes={modes}
+        isSplitVariant={bill?.isSplit === true}
+        onSettled={handleSettled}
+      />
 
       <BillDiscountModal
         visible={discountVisible}
@@ -191,6 +280,23 @@ export default function InstanceBillModal({
         staffId={staffId}
         onSuccess={refetchBill}
       />
+      <AddTipModal
+        visible={tipVisible}
+        onClose={() => setTipVisible(false)}
+        billId={billId}
+        staffId={staffId}
+        currentTipTotal={bill?.tipTotal ?? 0}
+        onSuccess={refetchBill}
+      />
+      {bill && (
+        <SplitBillModal
+          visible={splitVisible}
+          onClose={() => setSplitVisible(false)}
+          bill={bill}
+          staffId={staffId}
+          onSuccess={refetchBill}
+        />
+      )}
     </>
   );
 }
@@ -205,30 +311,20 @@ const styles = StyleSheet.create({
   empty: { color: '#64748B', padding: 24, textAlign: 'center' },
   scroll: { maxHeight: 400 },
   scrollContent: { paddingBottom: 24 },
+  variantRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  variantBtn: { backgroundColor: '#334155', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
+  variantBtnActive: { backgroundColor: '#FFD700' },
+  variantBtnPaid: { opacity: 0.8 },
+  variantBtnText: { color: '#F8FAFC', fontWeight: '600', fontSize: 14 },
+  variantPaidBadge: { color: '#94A3B8', fontSize: 11, marginTop: 2 },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 },
   itemName: { color: '#F8FAFC', fontSize: 14 },
   itemPrice: { color: '#FFD700', fontWeight: '600' },
   divider: { height: 1, backgroundColor: '#334155', marginVertical: 12 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  summaryLabel: { color: '#94A3B8', fontSize: 14 },
-  summaryValue: { color: '#F8FAFC', fontSize: 14 },
-  payableRow: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#334155' },
-  payableLabel: { fontSize: 18, fontWeight: '700', color: '#F8FAFC' },
-  payableValue: { fontSize: 20, fontWeight: '800', color: '#FFD700' },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 16, flexWrap: 'wrap' },
   smallBtn: { backgroundColor: '#334155', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
   smallBtnText: { color: '#F8FAFC', fontWeight: '600', fontSize: 14 },
   settleBtn: { backgroundColor: '#FFD700', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 16 },
   settleBtnText: { color: '#0F172A', fontWeight: '700' },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#F8FAFC', marginBottom: 16 },
-  modesList: { maxHeight: 200, marginBottom: 16 },
-  modeBtn: { backgroundColor: '#334155', padding: 16, borderRadius: 12, marginBottom: 8 },
-  modeBtnActive: { backgroundColor: '#FFD700' },
-  modeBtnText: { color: '#F8FAFC', fontWeight: '600' },
-  modalActions: { flexDirection: 'row', gap: 12 },
-  cancelBtn: { flex: 1, backgroundColor: '#334155', paddingVertical: 16, borderRadius: 12, alignItems: 'center' },
-  cancelBtnText: { color: '#F8FAFC', fontWeight: '600' },
-  confirmBtn: { flex: 1, backgroundColor: '#FFD700', paddingVertical: 16, borderRadius: 12, alignItems: 'center' },
-  confirmBtnText: { color: '#0F172A', fontWeight: '700' },
   btnDisabled: { opacity: 0.6 },
 });

@@ -4,7 +4,7 @@ export { staffLogin } from './authApi';
 export { getDineInAreas } from './areasApi';
 export { getTables, transferTable, mergeTables } from './tablesApi';
 export { getCategories, getAreaItems } from './menuApi';
-export { placeKot, getKotsByTable, transferKot, deleteKotItems } from './kotApi';
+export { placeKot, getKotsByTable, transferKot, deleteKotItems, reprintKot } from './kotApi';
 export {
   billPreview,
   billGenerate,
@@ -22,4 +22,12 @@ export {
   removeContainerCharge,
   addDeliveryCharge,
   removeDeliveryCharge,
+  addTip,
+  removeTip,
+  splitBillByPercentage,
+  splitBillByItemWise,
+  getSplitsByBillId,
+  clubSplits,
+  settleSplit,
+  printBill,
 } from './billApi';

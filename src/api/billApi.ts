@@ -13,6 +13,13 @@ import type {
   BillServiceChargeRemovePayload,
   BillExtraChargePayload,
   BillExtraChargeRemovePayload,
+  BillTipAddPayload,
+  BillTipRemovePayload,
+  SplitByPercentagePayload,
+  SplitByItemWisePayload,
+  SplitSettlePayload,
+  SplitSettleResult,
+  ClubSplitsPayload,
 } from './types';
 
 export async function billPreview(tableId: string, staffId: string): Promise<BillPreviewData> {
@@ -159,6 +166,78 @@ export async function removeDeliveryCharge(
   const res = await apiClient.post<ApiResponse<BillPreviewData>>(
     '/r/dine-in/bill/delivery-charge/remove',
     payload,
+  );
+  return parseApiResponse(res);
+}
+
+// ----- Tip -----
+export async function addTip(payload: BillTipAddPayload): Promise<BillPreviewData> {
+  const res = await apiClient.post<ApiResponse<BillPreviewData>>(
+    '/r/dine-in/bill/tip/add',
+    payload,
+  );
+  return parseApiResponse(res);
+}
+
+export async function removeTip(payload: BillTipRemovePayload): Promise<BillPreviewData> {
+  const res = await apiClient.post<ApiResponse<BillPreviewData>>(
+    '/r/dine-in/bill/tip/remove',
+    payload,
+  );
+  return parseApiResponse(res);
+}
+
+// ----- Split bill -----
+export async function splitBillByPercentage(
+  payload: SplitByPercentagePayload,
+): Promise<BillPreviewData> {
+  const res = await apiClient.post<ApiResponse<BillPreviewData>>(
+    '/r/dine-in/bill/split/percentage',
+    payload,
+  );
+  return parseApiResponse(res);
+}
+
+export async function splitBillByItemWise(
+  payload: SplitByItemWisePayload,
+): Promise<BillPreviewData> {
+  const res = await apiClient.post<ApiResponse<BillPreviewData>>(
+    '/r/dine-in/bill/split/item-wise',
+    payload,
+  );
+  return parseApiResponse(res);
+}
+
+export async function getSplitsByBillId(billId: string): Promise<BillPreviewData[]> {
+  const res = await apiClient.get<ApiResponse<BillPreviewData[]>>(
+    `/r/dine-in/bill/split/${billId}`,
+  );
+  return parseApiResponse(res);
+}
+
+export async function clubSplits(payload: ClubSplitsPayload): Promise<BillPreviewData> {
+  const res = await apiClient.post<ApiResponse<BillPreviewData>>(
+    '/r/dine-in/bill/split/club',
+    payload,
+  );
+  return parseApiResponse(res);
+}
+
+export async function settleSplit(
+  payload: SplitSettlePayload,
+): Promise<SplitSettleResult> {
+  const res = await apiClient.post<ApiResponse<SplitSettleResult>>(
+    '/r/dine-in/bill/split/settle',
+    payload,
+  );
+  return parseApiResponse(res);
+}
+
+// ----- Print -----
+export async function printBill(billId: string): Promise<{ success: boolean }> {
+  const res = await apiClient.post<ApiResponse<{ success: boolean }>>(
+    '/r/dine-in/bill/print-bill',
+    { billId },
   );
   return parseApiResponse(res);
 }
