@@ -167,8 +167,14 @@ const BillScreen = ({ navigation }: Props) => {
       navigation.navigate('Tables');
       return;
     }
+    if (!bill?.isSplit) {
+      setBillForTable(currentTable!.id, null);
+      refetchTables();
+      navigation.navigate('Tables');
+      return;
+    }
     await refetchBill();
-    if (bill?.isSplit && bill?.id) {
+    if (bill?.id) {
       const v = (await getSplitsByBillId(bill.id)).map(normalizeBillPreviewData);
       setVariants(v);
       if (v.length > 0 && v.every(x => x.status === 'PAID')) {

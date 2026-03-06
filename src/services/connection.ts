@@ -35,7 +35,16 @@ export async function pingIp(
   return { ip: `${ip}:${port}`, success: false };
 }
 
-import UdpSocket from 'react-native-udp';
+// `react-native-udp` is optional. If it's not installed, we fall back gracefully
+// so release builds can still bundle.
+let UdpSocket: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const m = require('react-native-udp');
+  UdpSocket = m?.default ?? m;
+} catch {
+  UdpSocket = null;
+}
 
 /**
  * PRODUCTION SAFE UDP Discovery
@@ -47,6 +56,10 @@ export async function discoverServerByUDP(
   deviceIp?: string,
 ): Promise<{ ip: string; success: boolean }> {
   console.log('[UDP-Discovery] Initializing...');
+  if (!UdpSocket) {
+    console.warn('[UDP-Discovery] react-native-udp not installed; skipping UDP discovery');
+    return { ip: '', success: false };
+  }
   return new Promise(resolve => {
     let socket: any = null;
     let resolved = false;

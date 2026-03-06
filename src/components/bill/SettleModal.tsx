@@ -289,7 +289,14 @@ export default function SettleModal({
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#1E293B', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, maxHeight: '85%' },
+  sheet: {
+    backgroundColor: '#1E293B',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    height: '92%',
+    maxHeight: '92%',
+  },
   title: { fontSize: 20, fontWeight: '800', color: '#F8FAFC', marginBottom: 16 },
   splitPaymentBtn: { backgroundColor: '#334155', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginBottom: 12 },
   splitPaymentBtnText: { color: '#FFD700', fontWeight: '700' },
