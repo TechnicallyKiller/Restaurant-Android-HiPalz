@@ -6,6 +6,7 @@ import type { ApiResponse } from './types';
 
 const apiClient = axios.create({
   baseURL: CONFIG.API_BASE_URL,
+  timeout: 5000,
   headers: {
     'Content-Type': 'application/json',
     'api-server-secret': API_SERVER_SECRET,
@@ -39,13 +40,28 @@ apiClient.interceptors.response.use(
   },
   (err: AxiosError<ApiResponse<unknown>>) => {
     const config = err.config;
-    const isNetworkError = !err.response && !err.code?.includes('ABORT');
 
-    // Auto-discovery on network error
-    if (isNetworkError && config && !(config as any)._isRetry) {
+    // DETECT NETWORK ERRORS (No response from server)
+    const isNetworkError =
+      !err.response ||
+      err.code === 'ECONNABORTED' ||
+      err.message === 'Network Error';
+    const isAborted =
+      err.code?.includes('ABORT') || err.message?.includes('abort');
+
+    console.log('🔴 [API-Error]', {
+      url: config?.url,
+      code: err.code,
+      message: err.message,
+      isNetworkError,
+      _isRetry: (config as any)?._isRetry,
+    });
+
+    // Auto-discovery on network error (but not on intentional aborts)
+    if (isNetworkError && !isAborted && config && !(config as any)._isRetry) {
       (config as any)._isRetry = true;
-      console.log(
-        '[API] Network error detected, trying to re-discover server...',
+      console.warn(
+        '[API] Connection lost! Starting background re-discovery...',
       );
 
       // Dynamic import to avoid circular dependency
@@ -53,13 +69,17 @@ apiClient.interceptors.response.use(
         .discoveryService.reDiscoverServer()
         .then((newUrl: string | null) => {
           if (newUrl) {
-            console.log('[API] Server re-discovered, retrying request...');
+            console.log(
+              '🟢 [API] Server re-discovered! Retrying original request...',
+            );
             config.baseURL = newUrl;
             return apiClient(config);
           }
+          console.error('❌ [API] Re-discovery failed.');
           throw err;
         })
-        .catch(() => {
+        .catch((discoErr: any) => {
+          console.error('❌ [API] Error during re-discovery:', discoErr);
           throw err;
         });
     }

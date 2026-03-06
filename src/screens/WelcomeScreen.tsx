@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -39,6 +40,7 @@ const WelcomeScreen = () => {
 
       if (newUrl) {
         setServerUrl(newUrl);
+        await discoveryService.applyNewUrl(newUrl);
         setIsSearching(false);
       } else {
         setError('Could not find server on local network.');

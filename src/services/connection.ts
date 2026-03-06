@@ -140,16 +140,25 @@ export async function discoverServerByUDP(
             deviceIp.split('.').length === 4
           ) {
             const parts = deviceIp.split('.');
-            targetSet.add(`${parts[0]}.${parts[1]}.${parts[2]}.255`);
+            const subnetBroadcast = `${parts[0]}.${parts[1]}.${parts[2]}.255`;
+            targetSet.add(subnetBroadcast);
+            console.log(
+              `[UDP-Discovery] Subnet Broadcast Target: ${subnetBroadcast}`,
+            );
           }
 
           // ALWAYS try common subnets as fallback
           targetSet.add('192.168.0.255');
           targetSet.add('192.168.1.255');
+          targetSet.add('192.168.2.255');
           targetSet.add('192.168.43.255');
           targetSet.add('192.168.137.255');
+          targetSet.add('10.0.0.255');
 
           const targetAddrs = Array.from(targetSet);
+          console.log(
+            `[UDP-Discovery] Spraying ${targetAddrs.length} targets...`,
+          );
 
           targetAddrs.forEach(broadcastAddr => {
             try {
@@ -162,9 +171,7 @@ export async function discoverServerByUDP(
                 broadcastAddr,
                 (sendErr: any) => {
                   if (!sendErr) {
-                    console.log(
-                      `[UDP-Discovery] Broadcast sent to ${broadcastAddr}`,
-                    );
+                    console.log(`[UDP-Discovery] -> Sent to ${broadcastAddr}`);
                   }
                 },
               );
@@ -185,7 +192,7 @@ import Zeroconf from 'react-native-zeroconf';
  * mDNS / Bonjour Discovery (Reliable Layer)
  */
 export async function discoverServerByZeroconf(
-  timeoutMs = 5000,
+  timeoutMs = 8000,
 ): Promise<{ ip: string; success: boolean }> {
   console.log('[mDNS-Discovery] Initializing...');
   return new Promise(resolve => {
@@ -211,13 +218,22 @@ export async function discoverServerByZeroconf(
       finish({ ip: '', success: false });
     });
 
+    // Logging help for debugging
+    zeroconf.on('update', () => {
+      const services = zeroconf.getServices();
+      console.log(
+        `[mDNS-Debug] Services seen: ${Object.keys(services).length}`,
+      );
+    });
+
     zeroconf.on('resolved', (service: any) => {
+      console.log('[mDNS-Discovery] Resolved service:', service.name);
       // Look for our specific service hipalz-*
-      if (service.name && service.name.includes('hipalz')) {
+      if (service.name && service.name.toLowerCase().includes('hipalz')) {
         const ip = service.addresses?.[0];
         const port = service.port || 3333;
         if (ip) {
-          console.log('[mDNS-Discovery] Found server:', ip, port);
+          console.log('🌟 [mDNS-Discovery] Found matching server!', ip, port);
           finish({ ip: `${ip}:${port}`, success: true });
         }
       }
@@ -252,8 +268,8 @@ export async function findServerConnection(
     // We use Promise.race but wrapped to only resolve if SUCCESSful,
     // or wait for both if both fail.
     const results = await Promise.all([
-      discoverServerByUDP(3334, 5000, deviceIp),
-      discoverServerByZeroconf(5000),
+      discoverServerByUDP(3334, 8000, deviceIp),
+      discoverServerByZeroconf(8000),
     ]);
 
     const success = results.find(r => r.success);

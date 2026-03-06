@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import {
   Modal,
   View,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { useErrorStore } from '../store/errorStore';
 import { useAuthStore } from '../store/authStore';
@@ -13,10 +14,42 @@ import { resetToLogin, resetToTables } from '../navigation/rootNavigation';
 import type { ErrorActionType } from '../utils/errorHandling';
 
 export default function ErrorModal() {
+  const [isReconnecting, setIsReconnecting] = React.useState(false);
   const { isOpen, title, message, actions, clearError } = useErrorStore();
   const logout = useAuthStore(s => s.logout);
 
   const handleAction = async (type: ErrorActionType) => {
+    if (type === 'reconnect') {
+      setIsReconnecting(true);
+      try {
+        const { discoveryService } = require('../services/discoveryService');
+        const found = await discoveryService.reDiscoverServer();
+        if (found) {
+          // Success! Clear error and let the app resume
+          clearError();
+          setIsReconnecting(false);
+          return;
+        }
+        // If not found, stay open so user can try again
+        require('../store/errorStore')
+          .useErrorStore.getState()
+          .setError({
+            isOpen: true,
+            title: 'Still Not Found',
+            message:
+              "We scanned the network but still couldn't find the HiPalz Server. Please check if your computer is on and connected to the same Wi-Fi.",
+            actions: [
+              { type: 'reconnect', label: 'Try Again' },
+              { type: 'dismiss', label: 'OK' },
+            ],
+          });
+      } catch (e) {
+        console.error('[ErrorModal] Reconnect failed:', e);
+      }
+      setIsReconnecting(false);
+      return;
+    }
+
     clearError();
     switch (type) {
       case 'go_to_login':
@@ -25,14 +58,6 @@ export default function ErrorModal() {
         break;
       case 'go_home':
         resetToTables();
-        break;
-      case 'reconnect':
-        try {
-          const { discoveryService } = require('../services/discoveryService');
-          await discoveryService.reDiscoverServer();
-        } catch (e) {
-          console.error('[ErrorModal] Reconnect failed:', e);
-        }
         break;
       case 'refresh':
         break;
@@ -49,29 +74,42 @@ export default function ErrorModal() {
       <View style={styles.overlay}>
         <SafeAreaView style={styles.centered}>
           <View style={styles.card}>
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.message}>{message}</Text>
-            <View style={styles.actions}>
-              {actions.map(({ type, label }) => (
-                <TouchableOpacity
-                  key={`${type}-${label}`}
-                  style={[
-                    styles.button,
-                    type === 'dismiss' && styles.buttonPrimary,
-                  ]}
-                  onPress={() => handleAction(type)}
-                >
-                  <Text
-                    style={[
-                      styles.buttonText,
-                      type === 'dismiss' && styles.buttonTextPrimary,
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Text style={styles.title}>
+              {isReconnecting ? 'Reconnecting...' : title}
+            </Text>
+            {isReconnecting ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#FFD700" />
+                <Text style={styles.loadingText}>
+                  Searching for HiPalz Server on new IP...
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.message}>{message}</Text>
+                <View style={styles.actions}>
+                  {actions.map(({ type, label }) => (
+                    <TouchableOpacity
+                      key={`${type}-${label}`}
+                      style={[
+                        styles.button,
+                        type === 'reconnect' && styles.buttonPrimary,
+                      ]}
+                      onPress={() => handleAction(type)}
+                    >
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          type === 'reconnect' && styles.buttonTextPrimary,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
           </View>
         </SafeAreaView>
       </View>
@@ -129,5 +167,15 @@ const styles = StyleSheet.create({
   },
   buttonTextPrimary: {
     color: '#0F172A',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    color: '#94A3B8',
+    marginTop: 15,
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
