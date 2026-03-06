@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import type { Table, TableStatusType } from '../../api/types';
+import { colors, neoCard } from '../../theme/neoBrutalism';
 
 interface ActiveTableCardProps {
   table: Table;
@@ -48,28 +49,27 @@ export default function ActiveTableCard({ table, onClick }: ActiveTableCardProps
 
 const styles = StyleSheet.create({
   card: {
+    ...neoCard,
     width: '47%',
     minHeight: 88,
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
     padding: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
+    borderLeftColor: colors.tertiary,
   },
   cardMuted: {
-    borderLeftColor: '#64748B',
+    borderLeftColor: colors.base300,
     opacity: 0.9,
   },
-  name: { fontSize: 16, fontWeight: '700', color: '#F8FAFC' },
-  code: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
-  merged: { fontSize: 11, color: '#64748B', marginTop: 2 },
+  name: { fontSize: 16, fontWeight: '700', color: colors.foreground },
+  code: { fontSize: 12, color: colors.mutedForeground, marginTop: 2 },
+  merged: { fontSize: 11, color: colors.mutedForeground, marginTop: 2 },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 8,
   },
-  capacity: { fontSize: 12, color: '#94A3B8' },
-  amount: { fontSize: 14, fontWeight: '700', color: '#FFD700' },
-  amountMuted: { color: '#94A3B8' },
+  capacity: { fontSize: 12, color: colors.mutedForeground },
+  amount: { fontSize: 14, fontWeight: '700', color: colors.tertiary },
+  amountMuted: { color: colors.mutedForeground },
 });

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from './src/store/authStore';
+import { useThemeStore } from './src/store/themeStore';
 import { updateApiClientBaseUrl } from './src/api/apiClient';
 import { CONFIG } from './src/config/env';
 import RootNavigator from './src/navigation/RootNavigator';
@@ -10,12 +12,13 @@ import { navigationRef } from './src/navigation/rootNavigation';
 
 const App = () => {
   const [ready, setReady] = useState(false);
-  const hydrate = useAuthStore((s: { hydrate: () => Promise<void> }) => s.hydrate);
+  const hydrateAuth = useAuthStore((s: { hydrate: () => Promise<void> }) => s.hydrate);
+  const hydrateTheme = useThemeStore(s => s.hydrate);
 
   useEffect(() => {
     updateApiClientBaseUrl(CONFIG.API_BASE_URL);
-    hydrate().finally(() => setReady(true));
-  }, [hydrate]);
+    Promise.all([hydrateAuth(), hydrateTheme()]).finally(() => setReady(true));
+  }, [hydrateAuth, hydrateTheme]);
 
   if (!ready) {
     return (
@@ -26,10 +29,12 @@ const App = () => {
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
-      <RootNavigator />
-      <ErrorModal />
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer ref={navigationRef}>
+        <RootNavigator />
+        <ErrorModal />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 };
 

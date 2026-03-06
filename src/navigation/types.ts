@@ -5,6 +5,7 @@ export type RootStackParamList = {
   Login: undefined;
   Tables: undefined;
   POS: undefined;
+  LiveCart: undefined;
   Bill: undefined;
 };
 

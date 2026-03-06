@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, TextInput, StyleSheet, ViewStyle } from 'react-native';
+import { colors, neoInput } from '../theme/neoBrutalism';
 
 const DEBOUNCE_MS = 300;
 
@@ -41,7 +42,7 @@ export default function SearchInput({ value, onChange, placeholder = 'Search…'
         value={localValue}
         onChangeText={setLocalValue}
         placeholder={placeholder}
-        placeholderTextColor="#64748B"
+        placeholderTextColor={colors.mutedForeground}
         returnKeyType="search"
       />
     </View>
@@ -52,16 +53,13 @@ const styles = StyleSheet.create({
   wrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
+    ...neoInput,
   },
   input: {
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: '#F8FAFC',
+    color: colors.foreground,
   },
 });

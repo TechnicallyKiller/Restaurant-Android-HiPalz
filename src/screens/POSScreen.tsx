@@ -11,6 +11,7 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
 import { useTableStore } from '../store/tableStore';
 import { useCartStore } from '../store/cartStore';
@@ -40,10 +41,12 @@ import SearchInput from '../components/SearchInput';
 import TableActionsModal from '../components/tables/TableActionsModal';
 import KotTransferModal from '../components/pos/KotTransferModal';
 import KotDeleteModal from '../components/pos/KotDeleteModal';
+import Sidebar from '../components/Sidebar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import type { Item } from '../api/types';
 import type { CartConfig, CartItem } from '../api/types';
+import { colors, borderBrutal, neoCard, neoButtonTertiary, shadowBrutal } from '../theme/neoBrutalism';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'POS'>;
 
@@ -100,6 +103,7 @@ const POSScreen = ({ navigation }: Props) => {
   const [kotDeleteVisible, setKotDeleteVisible] = useState(false);
   const [showAddMoreItems, setShowAddMoreItems] = useState(false);
   const [addMoreFromKotVisible, setAddMoreFromKotVisible] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { grouped, refetch: refetchTables } = useAreasAndTables();
   const allTablesForTransfer = React.useMemo(
@@ -188,9 +192,7 @@ const POSScreen = ({ navigation }: Props) => {
       setCustomiseItem(item);
       return;
     }
-    const last = similar[similar.length - 1];
-    const config = cartLineToConfig(last);
-    addToCart(currentTable.id, item, config, 1);
+    setRepeatItem(item);
   };
 
   const handleDecrementItem = (item: Item) => {
@@ -206,6 +208,10 @@ const POSScreen = ({ navigation }: Props) => {
 
   const handleCartDecrementRequest = (line: CartItem) => {
     if (!currentTable) return;
+    if (line.quantity > 1) {
+      updateQuantity(currentTable.id, line.cartId, -1);
+      return;
+    }
     const similar = findSimilarItems(currentTable.id, line.areaItemId);
     if (similar.length <= 1) updateQuantity(currentTable.id, line.cartId, -1);
     else setDecrementContext({ itemName: line.name, lines: similar });
@@ -260,19 +266,42 @@ const POSScreen = ({ navigation }: Props) => {
   ];
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>← Switch table</Text>
-        </TouchableOpacity>
-        <Text style={styles.tableName}>{currentTable.name}</Text>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            onPress={() => setSidebarOpen(true)}
+            style={styles.burgerBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Open menu"
+          >
+            <Text style={styles.burgerIcon}>☰</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <Text style={styles.backText}>← Switch table</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.headerCenter}>
+
+          <Text style={styles.tableName} numberOfLines={1}>{currentTable.name}</Text>
+        </View>
         <TouchableOpacity
           style={styles.tableActionsBtn}
           onPress={() => setTableActionsVisible(true)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Text style={styles.tableActionsBtnText}>Table actions</Text>
         </TouchableOpacity>
       </View>
+
+      <Sidebar
+        visible={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onLogout={() => {
+          setSidebarOpen(false);
+          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        }}
+      />
 
       <TableActionsModal
         visible={tableActionsVisible}
@@ -339,56 +368,56 @@ const POSScreen = ({ navigation }: Props) => {
                   </View>
                 )}
                 <View style={styles.cartTabContent}>
-                <View style={styles.categoryListWrap}>
-                  <ScrollView style={styles.categoryList} showsVerticalScrollIndicator={false}>
-                    <TouchableOpacity
-                      style={[styles.categoryChip, !selectedCategoryId && styles.categoryChipActive]}
-                      onPress={() => selectCategory(null)}
-                    >
-                      <Text style={[styles.categoryChipText, !selectedCategoryId && styles.categoryChipTextActive]} numberOfLines={1}>All</Text>
-                    </TouchableOpacity>
-                    {categories.map(cat => (
+                  <View style={styles.categoryListWrap}>
+                    <ScrollView style={styles.categoryList} showsVerticalScrollIndicator={false}>
                       <TouchableOpacity
-                        key={cat.id}
-                        style={[styles.categoryChip, selectedCategoryId === cat.id && styles.categoryChipActive]}
-                        onPress={() => selectCategory(cat.id)}
+                        style={[styles.categoryChip, !selectedCategoryId && styles.categoryChipActive]}
+                        onPress={() => selectCategory(null)}
                       >
-                        <Text style={[styles.categoryChipText, selectedCategoryId === cat.id && styles.categoryChipTextActive]} numberOfLines={2}>{cat.name}</Text>
+                        <Text style={[styles.categoryChipText, !selectedCategoryId && styles.categoryChipTextActive]} numberOfLines={1}>All</Text>
                       </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-                <View style={styles.dishesWrap}>
-                  <View style={styles.searchWrap}>
-                    <SearchInput
-                      value={itemSearchQuery}
-                      onChange={setItemSearchQuery}
-                      placeholder="Search dishes"
-                      style={styles.searchInput}
-                    />
+                      {categories.map(cat => (
+                        <TouchableOpacity
+                          key={cat.id}
+                          style={[styles.categoryChip, selectedCategoryId === cat.id && styles.categoryChipActive]}
+                          onPress={() => selectCategory(cat.id)}
+                        >
+                          <Text style={[styles.categoryChipText, selectedCategoryId === cat.id && styles.categoryChipTextActive]} numberOfLines={2}>{cat.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                   </View>
-                  {(isLoadingCategories || isLoadingItems) && filteredItems.length === 0 ? (
-                    <View style={styles.dishesLoading}>
-                      <ActivityIndicator size="large" color="#FFD700" />
+                  <View style={styles.dishesWrap}>
+                    <View style={styles.searchWrap}>
+                      <SearchInput
+                        value={itemSearchQuery}
+                        onChange={setItemSearchQuery}
+                        placeholder="Search dishes"
+                        style={styles.searchInput}
+                      />
                     </View>
-                  ) : (
-                    <FlatList
-                      data={filteredItems}
-                      keyExtractor={item => item.id}
-                      contentContainerStyle={styles.itemList}
-                      renderItem={({ item }) => (
-                        <ItemCard
-                          item={item}
-                          quantityInCart={getQuantityForItem(item.id)}
-                          onAdd={() => handleAddItem(item)}
-                          onIncrement={() => handleIncrementItem(item)}
-                          onDecrement={() => handleDecrementItem(item)}
-                          fullWidth
-                        />
-                      )}
-                    />
-                  )}
-                </View>
+                    {(isLoadingCategories || isLoadingItems) && filteredItems.length === 0 ? (
+                      <View style={styles.dishesLoading}>
+                        <ActivityIndicator size="large" color={colors.tertiary} />
+                      </View>
+                    ) : (
+                      <FlatList
+                        data={filteredItems}
+                        keyExtractor={item => item.id}
+                        contentContainerStyle={styles.itemList}
+                        renderItem={({ item }) => (
+                          <ItemCard
+                            item={item}
+                            quantityInCart={getQuantityForItem(item.id)}
+                            onAdd={() => handleAddItem(item)}
+                            onIncrement={() => handleIncrementItem(item)}
+                            onDecrement={() => handleDecrementItem(item)}
+                            fullWidth
+                          />
+                        )}
+                      />
+                    )}
+                  </View>
                 </View>
               </View>
             ) : (
@@ -415,17 +444,12 @@ const POSScreen = ({ navigation }: Props) => {
                     {cartCount} {cartCount === 1 ? 'item' : 'items'} · ₹{cartTotal.toFixed(0)}
                   </Text>
                 )}
-                {cartItems.length > 0 && !billSplit && canPlaceKot() && (
+                {cartItems.length > 0 && (
                   <TouchableOpacity
-                    style={[styles.placeOrderBtn, (isPlacing || cartCount === 0) && styles.placeOrderBtnDisabled]}
-                    onPress={handlePlaceOrder}
-                    disabled={isPlacing || cartCount === 0}
+                    style={styles.placeOrderBtn}
+                    onPress={() => navigation.navigate('LiveCart')}
                   >
-                    {isPlacing ? (
-                      <ActivityIndicator color="#0F172A" size="small" />
-                    ) : (
-                      <Text style={styles.placeOrderBtnText}>Place order</Text>
-                    )}
+                    <Text style={styles.placeOrderBtnText}>Show Cart</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity style={styles.addMoreItemBtn} onPress={() => setShowAddMoreItems(true)}>
@@ -437,19 +461,12 @@ const POSScreen = ({ navigation }: Props) => {
                 <Text style={styles.cartSummary}>
                   {cartCount} {cartCount === 1 ? 'item' : 'items'} · ₹{cartTotal.toFixed(0)}
                 </Text>
-                {!billSplit && canPlaceKot() && (
-                  <TouchableOpacity
-                    style={[styles.placeOrderBtn, (isPlacing || cartCount === 0) && styles.placeOrderBtnDisabled]}
-                    onPress={handlePlaceOrder}
-                    disabled={isPlacing || cartCount === 0}
-                  >
-                    {isPlacing ? (
-                      <ActivityIndicator color="#0F172A" size="small" />
-                    ) : (
-                      <Text style={styles.placeOrderBtnText}>Place order</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                  style={styles.placeOrderBtn}
+                  onPress={() => navigation.navigate('LiveCart')}
+                >
+                  <Text style={styles.placeOrderBtnText}>Show Cart</Text>
+                </TouchableOpacity>
               </View>
             ) : null}
           </>
@@ -499,7 +516,7 @@ const POSScreen = ({ navigation }: Props) => {
         <View style={styles.billTabContent}>
           {billRefreshing || previewLoading ? (
             <View style={styles.billLoading}>
-              <ActivityIndicator color="#FFD700" size="large" />
+              <ActivityIndicator color={colors.tertiary} size="large" />
               <Text style={styles.billLoadingText}>Loading bill…</Text>
             </View>
           ) : !billForTab ? (
@@ -631,7 +648,7 @@ const POSScreen = ({ navigation }: Props) => {
             </ScrollView>
             {(isLoadingCategories || isLoadingItems) && filteredItems.length === 0 ? (
               <View style={styles.loading}>
-                <ActivityIndicator size="large" color="#FFD700" />
+                <ActivityIndicator size="large" color={colors.tertiary} />
               </View>
             ) : (
               <FlatList
@@ -694,7 +711,7 @@ const POSScreen = ({ navigation }: Props) => {
                 </View>
                 {(isLoadingCategories || isLoadingItems) && filteredItems.length === 0 ? (
                   <View style={styles.dishesLoading}>
-                    <ActivityIndicator size="large" color="#FFD700" />
+                    <ActivityIndicator size="large" color={colors.tertiary} />
                   </View>
                 ) : (
                   <FlatList
@@ -719,42 +736,65 @@ const POSScreen = ({ navigation }: Props) => {
         </Modal>
       )}
 
-      {cartItems.length > 0 && (activeTab === 'kot' || activeTab === 'bill') && (
+      {cartItems.length > 0 && (activeTab === 'kot') && (
         <TouchableOpacity
           style={styles.globalCartBar}
-          onPress={() => setActiveTab('cart')}
+          onPress={() => navigation.navigate('LiveCart')}
           activeOpacity={0.8}
         >
           <Text style={styles.globalCartBarText}>
-            View cart · {cartCount} {cartCount === 1 ? 'item' : 'items'} · ₹{cartTotal.toFixed(0)}
+            Show cart · {cartCount} {cartCount === 1 ? 'item' : 'items'} · ₹{cartTotal.toFixed(0)}
           </Text>
         </TouchableOpacity>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
+  container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  noTable: { color: '#94A3B8', marginBottom: 16 },
-  backBtn: { backgroundColor: '#334155', padding: 16, borderRadius: 12 },
-  backBtnText: { color: '#F8FAFC', fontWeight: '600' },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#334155' },
-  backButton: { marginRight: 12 },
-  backText: { color: '#FFD700', fontSize: 16 },
-  tableName: { flex: 1, fontSize: 18, fontWeight: '700', color: '#F8FAFC' },
+  noTable: { color: colors.mutedForeground, marginBottom: 16 },
+  backBtn: { ...borderBrutal, backgroundColor: colors.base200, padding: 16 },
+  backBtnText: { color: colors.foreground, fontWeight: '600' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 3,
+    borderBottomColor: colors.brutalBorder,
+    backgroundColor: colors.base100,
+    zIndex: 10,
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  headerCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', marginHorizontal: 8 },
+  burgerBtn: {
+    padding: 8,
+    minWidth: 40,
+    minHeight: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4,
+  },
+  burgerIcon: { fontSize: 22, fontWeight: '700', color: colors.foreground },
+  backButton: { paddingVertical: 4 },
+  backText: { color: colors.tertiary, fontSize: 16 },
+  tableName: { fontSize: 18, fontWeight: '700', color: colors.foreground, textAlign: 'center' },
+  showCartBtn: { ...neoButtonTertiary, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8 },
+  showCartBtnText: { color: colors.background, fontWeight: '700', fontSize: 14, textTransform: 'uppercase' as const },
   tableActionsBtn: { paddingVertical: 8, paddingHorizontal: 12 },
-  tableActionsBtnText: { color: '#94A3B8', fontWeight: '600', fontSize: 14 },
+  tableActionsBtnText: { color: colors.mutedForeground, fontWeight: '600', fontSize: 14 },
   tabRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
-  tab: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, backgroundColor: '#1E293B' },
-  tabActive: { backgroundColor: '#FFD700' },
-  tabText: { color: '#94A3B8', fontWeight: '600' },
-  tabTextActive: { color: '#0F172A' },
+  tab: { ...borderBrutal, paddingVertical: 10, paddingHorizontal: 16, backgroundColor: colors.base200, borderRadius: 12 },
+  tabActive: { backgroundColor: colors.tertiary },
+  tabText: { color: colors.mutedForeground, fontWeight: '600' },
+  tabTextActive: { color: colors.background, fontWeight: '700' },
   categories: { maxHeight: 48, paddingVertical: 8, paddingLeft: 16 },
-  catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#1E293B', marginRight: 8 },
-  catChipActive: { backgroundColor: '#FFD700' },
-  catChipText: { color: '#F8FAFC', fontWeight: '600' },
+  catChip: { ...borderBrutal, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.base200, marginRight: 8, borderRadius: 20 },
+  catChipActive: { backgroundColor: colors.tertiary },
+  catChipText: { color: colors.foreground, fontWeight: '600' },
   loading: { flex: 1, justifyContent: 'center' },
   itemGrid: { padding: 16, paddingBottom: 120 },
   itemList: { paddingBottom: 24 },
@@ -768,46 +808,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: '#1E293B',
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
-    elevation: 8,
+    backgroundColor: colors.base100,
+    borderTopWidth: 3,
+    borderTopColor: colors.brutalBorder,
+    ...shadowBrutal,
     zIndex: 10,
   },
   cartTabContentWrapper: { flex: 1 },
   cartTabContent: { flex: 1, flexDirection: 'row', padding: 0 },
-  emptyTableBanner: { paddingVertical: 10, paddingHorizontal: 16, backgroundColor: '#1E293B', borderBottomWidth: 1, borderBottomColor: '#334155' },
-  emptyTableBannerText: { fontSize: 14, color: '#94A3B8', textAlign: 'center' },
-  addMoreHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#334155', backgroundColor: '#1E293B' },
-  addMoreHeaderTitle: { fontSize: 16, fontWeight: '700', color: '#F8FAFC' },
-  addMoreHeaderDone: { color: '#FFD700', fontWeight: '600', fontSize: 16 },
+  emptyTableBanner: { paddingVertical: 10, paddingHorizontal: 16, backgroundColor: colors.base200, borderBottomWidth: 3, borderBottomColor: colors.brutalBorder },
+  emptyTableBannerText: { fontSize: 14, color: colors.mutedForeground, textAlign: 'center' },
+  addMoreHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 3, borderBottomColor: colors.brutalBorder, backgroundColor: colors.base100 },
+  addMoreHeaderTitle: { fontSize: 16, fontWeight: '700', color: colors.foreground },
+  addMoreHeaderDone: { color: colors.tertiary, fontWeight: '600', fontSize: 16 },
   addMorePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  addMorePlaceholderText: { color: '#94A3B8', textAlign: 'center', fontSize: 15 },
-  addMoreItemBtn: { backgroundColor: '#FFD700', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  addMoreItemBtnText: { color: '#0F172A', fontWeight: '700', fontSize: 16 },
-  categoryListWrap: { width: 100, borderRightWidth: 1, borderRightColor: '#334155', paddingVertical: 8 },
+  addMorePlaceholderText: { color: colors.mutedForeground, textAlign: 'center', fontSize: 15 },
+  addMoreItemBtn: { ...neoButtonTertiary,width: '100%', paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' },
+  addMoreItemBtnText: { color: colors.background, fontWeight: '700', fontSize: 16, textTransform: 'uppercase' as const },
+  categoryListWrap: { width: 100, borderRightWidth: 3, borderRightColor: colors.brutalBorder, paddingVertical: 8 },
   categoryList: { paddingHorizontal: 8 },
-  categoryChip: { paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#1E293B', marginBottom: 6 },
-  categoryChipActive: { backgroundColor: '#FFD700' },
-  categoryChipText: { color: '#F8FAFC', fontWeight: '600', fontSize: 13 },
-  categoryChipTextActive: { color: '#0F172A' },
+  categoryChip: { ...borderBrutal, paddingVertical: 12, paddingHorizontal: 10, backgroundColor: colors.base200, marginBottom: 6, borderRadius: 12 },
+  categoryChipActive: { backgroundColor: colors.tertiary },
+  categoryChipText: { color: colors.foreground, fontWeight: '600', fontSize: 13 },
+  categoryChipTextActive: { color: colors.background },
   dishesWrap: { flex: 1, paddingHorizontal: 12, paddingTop: 8 },
   searchWrap: { marginBottom: 12 },
   searchInput: { marginBottom: 0 },
   dishesLoading: { flex: 1, justifyContent: 'center', minHeight: 120 },
-  cartListSection: { paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#334155', backgroundColor: '#1E293B', maxHeight: 200 },
-  cartSummary: { fontSize: 16, fontWeight: '700', color: '#FFD700' },
-  cartTotal: { fontSize: 20, fontWeight: '800', color: '#FFD700' },
-  placeOrderBtn: { backgroundColor: '#FFD700', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 12 },
+  cartListSection: { paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 3, borderTopColor: colors.brutalBorder, backgroundColor: colors.base100, maxHeight: 200 },
+  cartSummary: { fontSize: 16, fontWeight: '700', color: colors.tertiary },
+  cartTotal: { fontSize: 20, fontWeight: '800', color: colors.tertiary },
+  placeOrderBtn: { ...neoButtonTertiary, paddingVertical: 14, paddingHorizontal: 24 },
   placeOrderBtnDisabled: { opacity: 0.6 },
-  placeOrderBtnText: { color: '#0F172A', fontWeight: '700', fontSize: 16 },
-  kotToolbar: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#1E293B', borderBottomWidth: 1, borderBottomColor: '#334155' },
-  kotToolbarBtn: { flex: 1, backgroundColor: '#334155', paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
-  kotToolbarBtnText: { color: '#FFD700', fontWeight: '600', fontSize: 14 },
+  placeOrderBtnText: { color: colors.background, fontWeight: '700', fontSize: 16, textTransform: 'uppercase' as const },
+  kotToolbar: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: colors.base100, borderBottomWidth: 3, borderBottomColor: colors.brutalBorder },
+  kotToolbarBtn: { ...borderBrutal, flex: 1, backgroundColor: colors.base200, paddingVertical: 12, alignItems: 'center' },
+  kotToolbarBtnText: { color: colors.tertiary, fontWeight: '600', fontSize: 14, textTransform: 'uppercase' as const },
   kotToolbarBtnDisabled: { opacity: 0.5 },
   kotList: { flex: 1, padding: 16 },
   kotListWithAddMore: { paddingBottom: 24 },
-  addMoreKotModal: { flex: 1, backgroundColor: '#0F172A' },
+  addMoreKotModal: { flex: 1, backgroundColor: colors.background },
   globalCartBar: {
     position: 'absolute',
     bottom: 0,
@@ -817,40 +857,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    backgroundColor: '#1E293B',
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
-    elevation: 8,
+    backgroundColor: colors.base100,
+    borderTopWidth: 3,
+    borderTopColor: colors.brutalBorder,
+    ...shadowBrutal,
     zIndex: 10,
   },
-  globalCartBarText: { fontSize: 16, fontWeight: '700', color: '#FFD700' },
+  globalCartBarText: { fontSize: 16, fontWeight: '700', color: colors.tertiary, textTransform: 'uppercase' as const },
   kotActions: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  kotActionBtn: { flex: 1, backgroundColor: '#1E293B', paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
-  kotActionBtnText: { color: '#FFD700', fontWeight: '600', fontSize: 14 },
+  kotActionBtn: { ...borderBrutal, flex: 1, backgroundColor: colors.base200, paddingVertical: 12, alignItems: 'center' },
+  kotActionBtnText: { color: colors.tertiary, fontWeight: '600', fontSize: 14 },
   kotLoading: { marginTop: 24 },
-  emptyKot: { color: '#64748B', textAlign: 'center', marginTop: 24 },
-  addItemsModal: { flex: 1, backgroundColor: '#0F172A' },
-  addItemsModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#334155' },
-  addItemsModalTitle: { fontSize: 18, fontWeight: '700', color: '#F8FAFC' },
-  addItemsModalClose: { color: '#FFD700', fontWeight: '600', fontSize: 16 },
+  emptyKot: { color: colors.mutedForeground, textAlign: 'center', marginTop: 24 },
+  addItemsModal: { flex: 1, backgroundColor: colors.background },
+  addItemsModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 3, borderBottomColor: colors.brutalBorder },
+  addItemsModalTitle: { fontSize: 18, fontWeight: '700', color: colors.foreground },
+  addItemsModalClose: { color: colors.tertiary, fontWeight: '600', fontSize: 16 },
   billTabContent: { flex: 1 },
   billLoading: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  billLoadingText: { color: '#94A3B8', marginTop: 12 },
+  billLoadingText: { color: colors.mutedForeground, marginTop: 12 },
   billEmpty: { flex: 1, justifyContent: 'center', padding: 24 },
-  billEmptyText: { color: '#94A3B8', textAlign: 'center', marginBottom: 20 },
+  billEmptyText: { color: colors.mutedForeground, textAlign: 'center', marginBottom: 20 },
   billScroll: { flex: 1 },
   billScrollContent: { padding: 16, paddingBottom: 80 },
-  previewBanner: { backgroundColor: '#334155', padding: 12, borderRadius: 8, marginBottom: 16 },
-  previewBannerText: { color: '#FBBF24', fontWeight: '600', textAlign: 'center' },
+  previewBanner: { ...borderBrutal, backgroundColor: colors.base200, padding: 12, marginBottom: 16 },
+  previewBannerText: { color: colors.tertiary, fontWeight: '600', textAlign: 'center' },
   billLineRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 },
-  billLineName: { color: '#F8FAFC', fontSize: 14 },
-  billLineAmount: { color: '#FFD700', fontWeight: '600' },
-  billPayableRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#334155' },
-  billPayableLabel: { fontSize: 18, fontWeight: '700', color: '#F8FAFC' },
-  billPayableValue: { fontSize: 20, fontWeight: '800', color: '#FFD700' },
-  billTabFooter: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#1E293B', borderTopWidth: 1, borderTopColor: '#334155' },
-  billNavBtn: { backgroundColor: '#FFD700', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 12, alignItems: 'center' },
-  billNavBtnText: { color: '#0F172A', fontWeight: '700' },
+  billLineName: { color: colors.foreground, fontSize: 14 },
+  billLineAmount: { color: colors.tertiary, fontWeight: '600' },
+  billPayableRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, paddingTop: 12, borderTopWidth: 3, borderTopColor: colors.brutalBorder },
+  billPayableLabel: { fontSize: 18, fontWeight: '700', color: colors.foreground },
+  billPayableValue: { fontSize: 20, fontWeight: '800', color: colors.tertiary },
+  billTabFooter: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: colors.base100, borderTopWidth: 3, borderTopColor: colors.brutalBorder },
+  billNavBtn: { ...neoButtonTertiary, paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center' },
+  billNavBtnText: { color: colors.background, fontWeight: '700', textTransform: 'uppercase' as const },
 });
 
 export default POSScreen;

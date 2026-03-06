@@ -5,14 +5,15 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { FIXED_SERVER_BASE_URL, setDynamicBaseUrl } from '../config/env';
+import { FIXED_SERVER_BASE_URL } from '../config/env';
 import type { RootStackParamList } from '../navigation/types';
+import { colors, neoCard, neoButtonTertiary, textUppercase } from '../theme/neoBrutalism';
 import { NetworkInfo } from 'react-native-network-info';
 import { findServerConnection, pingIp } from '../services/connection';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -60,8 +61,8 @@ const WelcomeScreen = () => {
   const renderStatus = () => {
     if (isSearching) {
       return (
-        <View style={styles.statusCard}>
-          <ActivityIndicator size="large" color="#FFD700" />
+        <View style={[styles.statusCard, cardStyle]}>
+          <ActivityIndicator size="large" color={colors.tertiary} />
           <Text style={styles.statusText}>Searching for Server...</Text>
           <Text style={styles.ipLabel}>Scanning local network...</Text>
         </View>
@@ -70,14 +71,14 @@ const WelcomeScreen = () => {
 
     if (error) {
       return (
-        <View style={styles.statusCard}>
-          <View style={[styles.successIcon, { backgroundColor: '#EF4444' }]}>
+        <View style={[styles.statusCard, cardStyle]}>
+          <View style={[styles.successIcon, { backgroundColor: colors.error }]}>
             <Text style={styles.check}>✕</Text>
           </View>
           <Text style={styles.statusText}>Server Not Found</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
-            style={[styles.button, { marginTop: 20 }]}
+            style={[styles.button, btnStyle, { marginTop: 20 }]}
             onPress={discoverServer}
           >
             <Text style={styles.buttonText}>Retry Scan</Text>
@@ -87,19 +88,22 @@ const WelcomeScreen = () => {
     }
 
     return (
-      <View style={styles.statusCard}>
+      <View style={[styles.statusCard, cardStyle]}>
         <View style={styles.successIcon}>
           <Text style={styles.check}>✓</Text>
         </View>
         <Text style={styles.statusText}>Connected to Server</Text>
         <Text style={styles.ipLabel}>Server URL:</Text>
         <Text style={styles.ipText}>{serverUrl}</Text>
-        <TouchableOpacity style={styles.button} onPress={handleEnterTerminal}>
+        <TouchableOpacity style={[styles.button, btnStyle]} onPress={handleEnterTerminal}>
           <Text style={styles.buttonText}>Enter Terminal</Text>
         </TouchableOpacity>
       </View>
     );
   };
+
+  const cardStyle = { ...neoCard, width: '100%', padding: 40, alignItems: 'center' as const };
+  const btnStyle = { ...neoButtonTertiary, paddingVertical: 16, paddingHorizontal: 32, width: '100%', alignItems: 'center' as const };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -122,7 +126,7 @@ const WelcomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
   },
   content: {
     flex: 1,
@@ -133,7 +137,7 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFD700',
+    color: colors.tertiary,
     letterSpacing: 2,
     marginBottom: 8,
     textTransform: 'uppercase',
@@ -141,31 +145,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.foreground,
     marginBottom: 40,
   },
-  statusCard: {
-    width: '100%',
-    backgroundColor: '#1E293B',
-    borderRadius: 24,
-    padding: 40,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
-  },
+  statusCard: {},
   statusText: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.foreground,
     marginTop: 20,
     marginBottom: 10,
   },
   ipLabel: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: colors.mutedForeground,
     marginTop: 10,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -173,13 +166,13 @@ const styles = StyleSheet.create({
   ipText: {
     fontSize: 18,
     fontFamily: 'monospace',
-    color: '#FFD700',
+    color: colors.tertiary,
     marginBottom: 30,
     fontWeight: '700',
   },
   errorText: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: colors.mutedForeground,
     textAlign: 'center',
     marginBottom: 10,
   },
@@ -187,34 +180,28 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#059669',
+    backgroundColor: colors.success,
     justifyContent: 'center',
     alignItems: 'center',
   },
   check: {
-    color: '#FFFFFF',
+    color: colors.primaryForeground,
     fontSize: 30,
     fontWeight: 'bold',
   },
-  button: {
-    backgroundColor: '#FFD700',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
-  },
+  button: {},
   buttonText: {
-    color: '#0F172A',
+    color: colors.background,
     fontSize: 16,
     fontWeight: '700',
+    ...textUppercase,
   },
   footer: {
     padding: 20,
     alignItems: 'center',
   },
   footerText: {
-    color: '#475569',
+    color: colors.mutedForeground,
     fontSize: 12,
   },
 });

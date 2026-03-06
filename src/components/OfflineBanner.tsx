@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useErrorStore } from '../store/errorStore';
+import { colors } from '../theme/neoBrutalism';
 
 export default function OfflineBanner() {
   const isOffline = useErrorStore(s => s.isOffline);
@@ -14,14 +15,18 @@ export default function OfflineBanner() {
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: '#B45309',
+    backgroundColor: colors.warning,
     paddingVertical: 8,
     paddingHorizontal: 16,
     alignItems: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: colors.brutalBorder,
   },
   text: {
-    color: '#FFF',
+    color: colors.foreground,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });

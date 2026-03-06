@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps } from 'react-native';
+import { colors, neoInput } from '../../theme/neoBrutalism';
 
 interface LoginInputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
@@ -25,7 +26,7 @@ export default function LoginInput({
           error ? styles.inputError : undefined,
           inputStyle,
         ]}
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={colors.mutedForeground}
         editable={editable}
         {...inputProps}
       />
@@ -39,24 +40,23 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#94A3B8',
+    color: colors.mutedForeground,
     marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   input: {
-    backgroundColor: '#334155',
-    borderRadius: 12,
+    ...neoInput,
     padding: 16,
     fontSize: 16,
-    color: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: 'transparent',
+    color: colors.foreground,
   },
   inputError: {
-    borderColor: '#F87171',
+    borderColor: colors.error,
   },
   errorText: {
     fontSize: 12,
-    color: '#F87171',
+    color: colors.error,
     marginTop: 6,
   },
 });

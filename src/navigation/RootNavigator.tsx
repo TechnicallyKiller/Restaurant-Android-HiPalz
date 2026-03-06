@@ -6,6 +6,7 @@ import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import TablesScreen from '../screens/TablesScreen';
 import POSScreen from '../screens/POSScreen';
+import LiveCartScreen from '../screens/LiveCartScreen';
 import BillScreen from '../screens/BillScreen';
 import OfflineBanner from '../components/OfflineBanner';
 
@@ -18,13 +19,14 @@ export default function RootNavigator() {
       <Stack.Navigator
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#0F172A' },
+        contentStyle: { backgroundColor: '#0c0a09' },
       }}
     >
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Tables" component={TablesScreen} />
       <Stack.Screen name="POS" component={POSScreen} />
+      <Stack.Screen name="LiveCart" component={LiveCartScreen} />
       <Stack.Screen name="Bill" component={BillScreen} />
     </Stack.Navigator>
     </View>

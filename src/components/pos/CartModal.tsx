@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import type { CartItem } from '../../api/types';
 import CartListSection from './CartListSection';
+import { colors, neoModal, neoButtonTertiary } from '../../theme/neoBrutalism';
 
 interface CartModalProps {
   visible: boolean;
@@ -77,14 +78,14 @@ export default function CartModal({
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#1E293B', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#334155' },
-  title: { fontSize: 20, fontWeight: '800', color: '#F8FAFC' },
-  closeText: { color: '#FFD700', fontWeight: '600' },
+  sheet: { ...neoModal, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 3, borderBottomColor: colors.brutalBorder, backgroundColor: colors.base100 },
+  title: { fontSize: 20, fontWeight: '800', color: colors.foreground, textTransform: 'uppercase' as const },
+  closeText: { color: colors.tertiary, fontWeight: '600' },
   listWrap: { maxHeight: 400 },
-  footer: { padding: 20, borderTopWidth: 1, borderTopColor: '#334155' },
-  totalLabel: { fontSize: 18, fontWeight: '700', color: '#F8FAFC', marginBottom: 12 },
-  placeBtn: { backgroundColor: '#FFD700', paddingVertical: 16, borderRadius: 12, alignItems: 'center' },
+  footer: { padding: 20, borderTopWidth: 3, borderTopColor: colors.brutalBorder, backgroundColor: colors.base200 },
+  totalLabel: { fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 12 },
+  placeBtn: { ...neoButtonTertiary, paddingVertical: 16, alignItems: 'center' },
   placeBtnDisabled: { opacity: 0.6 },
-  placeBtnText: { color: '#0F172A', fontWeight: '700', fontSize: 16 },
+  placeBtnText: { color: colors.background, fontWeight: '700', fontSize: 16, textTransform: 'uppercase' as const },
 });

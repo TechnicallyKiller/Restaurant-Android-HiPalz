@@ -8,11 +8,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import LoginInput from '../components/auth/LoginInput';
 import HipalzLogo from '../components/auth/HipalzLogo';
+import { colors, neoCard, neoButtonTertiary, textUppercase } from '../theme/neoBrutalism';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -31,6 +33,7 @@ const LoginScreen = ({ navigation }: Props) => {
   };
 
   return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -76,55 +79,49 @@ const LoginScreen = ({ navigation }: Props) => {
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
+const cardStyle = { ...neoCard, padding: 24 };
+const buttonStyle = { ...neoButtonTertiary, paddingVertical: 16, alignItems: 'center' as const, marginTop: 8 };
+
 const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.background },
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     padding: 24,
   },
-  card: {
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
+  card: cardStyle,
   subtitle: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: colors.mutedForeground,
     marginBottom: 24,
     textAlign: 'center',
   },
   errorBox: {
-    backgroundColor: 'rgba(248, 113, 113, 0.15)',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#F87171',
+    borderWidth: 3,
+    borderColor: colors.error,
   },
   errorText: {
-    color: '#F87171',
+    color: colors.error,
     fontSize: 14,
   },
-  button: {
-    backgroundColor: '#FFD700',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
+  button: buttonStyle,
   buttonDisabled: {
     opacity: 0.7,
   },
   buttonText: {
-    color: '#0F172A',
+    color: colors.background,
     fontSize: 16,
     fontWeight: '700',
+    ...textUppercase,
   },
 });
 

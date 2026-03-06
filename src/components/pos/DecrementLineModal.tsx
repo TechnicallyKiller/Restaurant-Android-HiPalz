@@ -34,8 +34,8 @@ export default function DecrementLineModal({
     <Modal visible animationType="fade" transparent>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose} />
       <View style={styles.sheet}>
-        <Text style={styles.title}>Remove one</Text>
-        <Text style={styles.subtitle}>{itemName} — which line?</Text>
+        <Text style={styles.title}>Multiple {itemName} found</Text>
+        <Text style={styles.subtitle}>Select which one to remove</Text>
         <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
           {lines.map(line => (
             <TouchableOpacity
@@ -45,6 +45,7 @@ export default function DecrementLineModal({
             >
               <Text style={styles.lineDesc}>{lineDescription(line)}</Text>
               <Text style={styles.lineQty}>Qty: {line.quantity} · ₹{line.totalPrice.toFixed(0)}</Text>
+              <Text style={styles.removeOneLabel}>Remove one</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -74,6 +75,7 @@ const styles = StyleSheet.create({
   lineBtn: { backgroundColor: '#334155', padding: 14, borderRadius: 10, marginBottom: 8 },
   lineDesc: { color: '#F8FAFC', fontWeight: '600', fontSize: 14 },
   lineQty: { color: '#94A3B8', fontSize: 12, marginTop: 2 },
+  removeOneLabel: { color: '#FFD700', fontSize: 12, fontWeight: '600', marginTop: 4 },
   cancelBtn: { paddingVertical: 14, alignItems: 'center' },
   cancelBtnText: { color: '#94A3B8', fontWeight: '600' },
 });

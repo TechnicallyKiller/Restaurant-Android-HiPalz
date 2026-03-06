@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import type { Item, AttributeValueType } from '../../api/types';
+import { colors, neoCard, neoButtonTertiary } from '../../theme/neoBrutalism';
 
 const ATTR_COLORS: Record<AttributeValueType, { border: string; fill: string }> = {
   1: { border: '#22C55E', fill: '#22C55E' },   // VEG
@@ -61,8 +62,7 @@ export default function ItemCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
+    ...neoCard,
     padding: 12,
     width: '48%',
   },
@@ -72,20 +72,20 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    borderWidth: 1.5,
-    borderColor: '#64748B',
+    borderWidth: 2,
+    borderColor: colors.base300,
     marginRight: 6,
     justifyContent: 'center',
     alignItems: 'center',
   },
   attrInner: { width: 8, height: 8, borderRadius: 4 },
-  name: { flex: 1, fontSize: 14, fontWeight: '700', color: '#F8FAFC' },
+  name: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.foreground },
   bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  price: { fontSize: 15, fontWeight: '800', color: '#FFD700' },
-  addBtn: { backgroundColor: '#FFD700', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 },
-  addBtnText: { color: '#0F172A', fontWeight: '700', fontSize: 14 },
+  price: { fontSize: 15, fontWeight: '800', color: colors.tertiary },
+  addBtn: { ...neoButtonTertiary, paddingVertical: 8, paddingHorizontal: 16 },
+  addBtnText: { color: colors.background, fontWeight: '700', fontSize: 14, textTransform: 'uppercase' as const },
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  qtyBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#334155', justifyContent: 'center', alignItems: 'center' },
-  qtyBtnText: { color: '#F8FAFC', fontWeight: '700', fontSize: 16 },
-  qtyValue: { fontSize: 14, fontWeight: '700', color: '#F8FAFC', minWidth: 20, textAlign: 'center' },
+  qtyBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.base200, borderWidth: 2, borderColor: colors.brutalBorder, justifyContent: 'center', alignItems: 'center' },
+  qtyBtnText: { color: colors.foreground, fontWeight: '700', fontSize: 16 },
+  qtyValue: { fontSize: 14, fontWeight: '700', color: colors.foreground, minWidth: 20, textAlign: 'center' },
 });

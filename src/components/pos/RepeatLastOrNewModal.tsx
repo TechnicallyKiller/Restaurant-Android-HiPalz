@@ -22,11 +22,13 @@ export default function RepeatLastOrNewModal({
     <Modal visible animationType="fade" transparent>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose} />
       <View style={styles.sheet}>
-        <Text style={styles.title}>{itemName}</Text>
-        <Text style={styles.subtitle}>Repeat previous or add new?</Text>
+        <Text style={styles.title}>Add {itemName}</Text>
+        <Text style={styles.subtitle}>
+          Same dish with same options (including note) or choose new variant/addons?
+        </Text>
         <TouchableOpacity style={styles.optionBtn} onPress={onRepeatLast}>
           <Text style={styles.optionBtnText}>Repeat last</Text>
-          <Text style={styles.optionHint}>Same portion & add-ons</Text>
+          <Text style={styles.optionHint}>Same portion, add-ons & note</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.optionBtn} onPress={onAddNew}>
           <Text style={styles.optionBtnText}>Add new</Text>

@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAreasAndTables, useInstancedBills } from '../hooks';
 import { useAuthStore } from '../store/authStore';
 import { useTableStore } from '../store/tableStore';
@@ -17,6 +18,7 @@ import type { Table } from '../api/types';
 import type { AreaWithTables } from '../hooks/useAreasAndTables';
 import SearchInput from '../components/SearchInput';
 import ErrorFallback from '../components/ErrorFallback';
+import { colors, neoCard, neoButtonTertiary } from '../theme/neoBrutalism';
 import EmptyTablesModal from '../components/tables/EmptyTablesModal';
 import ActiveTableCard from '../components/tables/ActiveTableCard';
 import InstanceBillModal from '../components/tables/InstanceBillModal';
@@ -84,7 +86,7 @@ const TablesScreen = ({ navigation }: Props) => {
   if (isLoading && grouped.length === 0) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#FFD700" />
+        <ActivityIndicator size="large" color={colors.tertiary} />
       </View>
     );
   }
@@ -96,7 +98,7 @@ const TablesScreen = ({ navigation }: Props) => {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.headerRow}>
         <Text style={styles.header}>Tables</Text>
       </View>
@@ -104,7 +106,7 @@ const TablesScreen = ({ navigation }: Props) => {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFD700" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.tertiary} />
         }
       >
       {(instances ?? []).length > 0 && (
@@ -187,12 +189,15 @@ const TablesScreen = ({ navigation }: Props) => {
           refetch();
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
+const startBtnStyle = { ...neoButtonTertiary, paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center' as const };
+const instanceCardStyle = { ...neoCard, padding: 12, marginBottom: 8 };
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
+  container: { flex: 1, backgroundColor: colors.background },
   scroll: { flex: 1 },
   content: { padding: 16, paddingBottom: 100 },
   fixedBottom: {
@@ -202,15 +207,15 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 16,
     paddingBottom: 24,
-    backgroundColor: '#0F172A',
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
+    backgroundColor: colors.background,
+    borderTopWidth: 3,
+    borderTopColor: colors.brutalBorder,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
   },
   headerRow: {
     flexDirection: 'row',
@@ -218,27 +223,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  header: { fontSize: 24, fontWeight: '800', color: '#F8FAFC' },
-  startTableBtn: {
-    backgroundColor: '#FFD700',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  startTableBtnText: { color: '#0F172A', fontWeight: '700', fontSize: 16 },
+  header: { fontSize: 24, fontWeight: '800', color: colors.foreground },
+  startTableBtn: startBtnStyle,
+  startTableBtnText: { color: colors.background, fontWeight: '700', fontSize: 16, textTransform: 'uppercase' as const, letterSpacing: 1 },
   instancesSection: { marginBottom: 16 },
-  instancesSectionTitle: { fontSize: 14, fontWeight: '600', color: '#94A3B8', marginBottom: 4 },
-  instancesSectionSubtitle: { fontSize: 12, color: '#64748B', marginBottom: 10 },
-  instanceCard: { backgroundColor: '#1E293B', borderRadius: 10, padding: 12, marginBottom: 8 },
-  instanceCardTitle: { fontSize: 14, fontWeight: '700', color: '#F8FAFC' },
-  instanceCardSub: { fontSize: 12, color: '#94A3B8', marginTop: 4 },
+  instancesSectionTitle: { fontSize: 14, fontWeight: '600', color: colors.mutedForeground, marginBottom: 4 },
+  instancesSectionSubtitle: { fontSize: 12, color: colors.mutedForeground, marginBottom: 10 },
+  instanceCard: instanceCardStyle,
+  instanceCardTitle: { fontSize: 14, fontWeight: '700', color: colors.foreground },
+  instanceCardSub: { fontSize: 12, color: colors.mutedForeground, marginTop: 4 },
   search: { marginBottom: 12 },
-  errorText: { color: '#F87171', marginBottom: 12 },
+  errorText: { color: colors.error, marginBottom: 12 },
   section: { marginBottom: 24 },
-  areaName: { fontSize: 18, fontWeight: '600', color: '#94A3B8', marginBottom: 12 },
+  areaName: { fontSize: 18, fontWeight: '600', color: colors.mutedForeground, marginBottom: 12 },
   tableGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  empty: { color: '#64748B', textAlign: 'center', marginTop: 24 },
+  empty: { color: colors.mutedForeground, textAlign: 'center', marginTop: 24 },
 });
 
 export default TablesScreen;

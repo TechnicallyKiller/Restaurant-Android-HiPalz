@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTableStore } from '../store/tableStore';
 import { useBillStore } from '../store/billStore';
 import { useAuthStore } from '../store/authStore';
@@ -188,12 +189,12 @@ const BillScreen = ({ navigation }: Props) => {
 
   if (!currentTable) {
     return (
-      <View style={styles.centered}>
+      <SafeAreaView style={[styles.container, styles.centered]} edges={['top']}>
         <Text style={styles.noTable}>No table selected</Text>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Text style={styles.backBtnText}>Back</Text>
         </TouchableOpacity>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -204,9 +205,9 @@ const BillScreen = ({ navigation }: Props) => {
       : bill;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Bill — {currentTable.name}</Text>
@@ -390,7 +391,7 @@ const BillScreen = ({ navigation }: Props) => {
         isSplitVariant={bill?.isSplit === true}
         onSettled={handleSettled}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 

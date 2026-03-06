@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import type { CartItem } from '../../api/types';
+import { colors, neoCard } from '../../theme/neoBrutalism';
 import type { AttributeValueType } from '../../api/types';
 import InstructionModal from './InstructionModal';
 
@@ -16,6 +17,8 @@ export interface CartListSectionProps {
   onUpdateNotes: (cartId: string, notes: string) => void;
   /** When provided, called on minus tap so parent can show "which line" modal if multiple for same item */
   onDecrementRequest?: (line: CartItem) => void;
+  /** When provided, show a Remove button per line to delete the line from cart */
+  onRemove?: (cartId: string) => void;
 }
 
 function CartLineRow({
@@ -23,11 +26,13 @@ function CartLineRow({
   onUpdateQuantity,
   onDecrementRequest,
   onAddInstruction,
+  onRemove,
 }: {
   line: CartItem;
   onUpdateQuantity: (cartId: string, delta: number) => void;
   onDecrementRequest?: (line: CartItem) => void;
   onAddInstruction: () => void;
+  onRemove?: (cartId: string) => void;
 }) {
   const attrStyle = line.attribute ? ATTR_COLORS[line.attribute] : null;
   const portion = line.variantName
@@ -61,8 +66,28 @@ function CartLineRow({
         <Text style={styles.linePrice}>₹{line.totalPrice.toFixed(0)}</Text>
       </View>
       <View style={styles.lineActions}>
+        {line.notes?.trim() ? (
+          <TouchableOpacity style={styles.noteBtn} onPress={onAddInstruction} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.noteText} numberOfLines={1}>{line.notes.trim()}</Text>
+            <Text style={styles.editHint}>Edit</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.addNoteBtn} onPress={onAddInstruction} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.addNoteText}>Add instruction</Text>
+          </TouchableOpacity>
+        )}
+        {onRemove ? (
+          <TouchableOpacity
+            style={styles.removeBtn}
+            onPress={() => onRemove(line.cartId)}
+            accessibilityLabel="Remove item"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.removeBtnText}>Delete</Text>
+          </TouchableOpacity>
+        ) : null}
         <View style={styles.qtyRow}>
-          <TouchableOpacity style={styles.qtyBtn} onPress={handleMinus} accessibilityLabel="Decrease quantity">
+          <TouchableOpacity style={styles.qtyBtn} onPress={handleMinus} accessibilityLabel="Decrease quantity" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.qtyBtnText}>−</Text>
           </TouchableOpacity>
           <Text style={styles.qtyValue}>{line.quantity}</Text>
@@ -70,20 +95,11 @@ function CartLineRow({
             style={styles.qtyBtn}
             onPress={() => onUpdateQuantity(line.cartId, 1)}
             accessibilityLabel="Increase quantity"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Text style={styles.qtyBtnText}>+</Text>
           </TouchableOpacity>
         </View>
-        {line.notes?.trim() ? (
-          <TouchableOpacity style={styles.noteBtn} onPress={onAddInstruction}>
-            <Text style={styles.noteText} numberOfLines={1}>{line.notes.trim()}</Text>
-            <Text style={styles.editHint}>Edit</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.addNoteBtn} onPress={onAddInstruction}>
-            <Text style={styles.addNoteText}>Add instruction</Text>
-          </TouchableOpacity>
-        )}
       </View>
     </View>
   );
@@ -94,6 +110,7 @@ export default function CartListSection({
   onUpdateQuantity,
   onUpdateNotes,
   onDecrementRequest,
+  onRemove,
 }: CartListSectionProps) {
   const [instructionCartId, setInstructionCartId] = useState<string | null>(null);
   const lineForInstruction = instructionCartId ? items.find(i => i.cartId === instructionCartId) : null;
@@ -111,6 +128,7 @@ export default function CartListSection({
               onUpdateQuantity={onUpdateQuantity}
               onDecrementRequest={onDecrementRequest}
               onAddInstruction={() => setInstructionCartId(line.cartId)}
+              onRemove={onRemove}
             />
           ))
         )}
@@ -133,23 +151,25 @@ export default function CartListSection({
 const styles = StyleSheet.create({
   list: { flex: 1 },
   listContent: { padding: 16, paddingBottom: 24 },
-  empty: { color: '#64748B', textAlign: 'center', padding: 24 },
-  lineCard: { backgroundColor: '#334155', borderRadius: 12, padding: 14, marginBottom: 12 },
+  empty: { color: colors.mutedForeground, textAlign: 'center', padding: 24 },
+  lineCard: { ...neoCard, padding: 14, marginBottom: 12 },
   lineHeader: { flexDirection: 'row', alignItems: 'flex-start' },
-  attrDot: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, borderColor: '#64748B', marginRight: 8, justifyContent: 'center', alignItems: 'center' },
+  attrDot: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: colors.base300, marginRight: 8, justifyContent: 'center', alignItems: 'center' },
   attrInner: { width: 6, height: 6, borderRadius: 3 },
   lineTitleBlock: { flex: 1 },
-  lineName: { fontSize: 15, fontWeight: '700', color: '#F8FAFC' },
-  lineMeta: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
-  linePrice: { fontSize: 15, fontWeight: '700', color: '#FFD700' },
-  lineActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
+  lineName: { fontSize: 15, fontWeight: '700', color: colors.foreground },
+  lineMeta: { fontSize: 12, color: colors.mutedForeground, marginTop: 2 },
+  linePrice: { fontSize: 15, fontWeight: '700', color: colors.tertiary },
+  lineActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, minHeight: 44 },
+  removeBtn: { paddingVertical: 10, paddingHorizontal: 14 },
+  removeBtnText: { color: colors.error, fontSize: 13, fontWeight: '600' },
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  qtyBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#1E293B', justifyContent: 'center', alignItems: 'center' },
-  qtyBtnText: { color: '#F8FAFC', fontWeight: '700', fontSize: 16 },
-  qtyValue: { fontSize: 14, fontWeight: '700', color: '#F8FAFC', minWidth: 20, textAlign: 'center' },
+  qtyBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.base200, borderWidth: 2, borderColor: colors.brutalBorder, justifyContent: 'center', alignItems: 'center' },
+  qtyBtnText: { color: colors.foreground, fontWeight: '700', fontSize: 16 },
+  qtyValue: { fontSize: 14, fontWeight: '700', color: colors.foreground, minWidth: 20, textAlign: 'center' },
   addNoteBtn: { paddingVertical: 6, paddingHorizontal: 10 },
-  addNoteText: { color: '#FFD700', fontSize: 13, fontWeight: '600' },
+  addNoteText: { color: colors.tertiary, fontSize: 13, fontWeight: '600' },
   noteBtn: { flex: 1, marginLeft: 12 },
-  noteText: { color: '#94A3B8', fontSize: 12 },
-  editHint: { color: '#FFD700', fontSize: 11, marginTop: 2 },
+  noteText: { color: colors.mutedForeground, fontSize: 12 },
+  editHint: { color: colors.tertiary, fontSize: 11, marginTop: 2 },
 });
