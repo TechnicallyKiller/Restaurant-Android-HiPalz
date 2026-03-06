@@ -11,13 +11,23 @@ export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
-  if (error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string') {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof (error as { message: unknown }).message === 'string'
+  ) {
     return (error as { message: string }).message;
   }
   return 'Something went wrong';
 }
 
-export type ErrorActionType = 'go_to_login' | 'refresh' | 'go_home' | 'dismiss';
+export type ErrorActionType =
+  | 'go_to_login'
+  | 'refresh'
+  | 'go_home'
+  | 'dismiss'
+  | 'reconnect';
 
 export interface ErrorAction {
   type: ErrorActionType;
@@ -42,10 +52,11 @@ export interface ErrorState {
  * Network errors → set offline state (no blocking modal)
  */
 export function handleApiError(error: unknown): void {
-  const { setError, setOffline } = require('../store/errorStore').useErrorStore.getState() as {
-    setError: (p: Partial<ErrorState> & { isOpen: true }) => void;
-    setOffline: (v: boolean) => void;
-  };
+  const { setError, setOffline } =
+    require('../store/errorStore').useErrorStore.getState() as {
+      setError: (p: Partial<ErrorState> & { isOpen: true }) => void;
+      setOffline: (v: boolean) => void;
+    };
 
   if (error instanceof ApiError) {
     const { statusCode, message } = error;
@@ -114,8 +125,24 @@ export function handleApiError(error: unknown): void {
 
   if (error instanceof Error) {
     const msg = error.message.toLowerCase();
-    if (msg.includes('failed to fetch') || msg.includes('network request failed') || msg.includes('network error')) {
+    if (
+      msg.includes('failed to fetch') ||
+      msg.includes('network request failed') ||
+      msg.includes('network error') ||
+      msg.includes('socket is closed')
+    ) {
       setOffline(true);
+      setError({
+        isOpen: true,
+        title: 'Connection Lost',
+        message:
+          'The app lost connection to the server. This happens if the server moves to a new IP or the Wi-Fi changed.',
+        code: 0,
+        actions: [
+          { type: 'reconnect', label: 'Reconnect Now' },
+          { type: 'dismiss', label: 'Wait' },
+        ],
+      });
       return;
     }
   }

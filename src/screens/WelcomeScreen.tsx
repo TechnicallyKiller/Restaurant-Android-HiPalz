@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,19 +6,97 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { FIXED_SERVER_BASE_URL } from '../config/env';
+import { FIXED_SERVER_BASE_URL, setDynamicBaseUrl } from '../config/env';
 import type { RootStackParamList } from '../navigation/types';
+import { NetworkInfo } from 'react-native-network-info';
+import { findServerConnection, pingIp } from '../services/connection';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type WelcomeNav = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
 
 const WelcomeScreen = () => {
   const navigation = useNavigation<WelcomeNav>();
+  const [serverUrl, setServerUrl] = useState<string>(FIXED_SERVER_BASE_URL);
+  const [isSearching, setIsSearching] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    discoverServer();
+  }, []);
+
+  const discoverServer = async () => {
+    if (isSearching && serverUrl !== FIXED_SERVER_BASE_URL) return;
+    setIsSearching(true);
+    setError(null);
+    try {
+      const { discoveryService } = require('../services/discoveryService');
+      const newUrl = await discoveryService.reDiscoverServer();
+      console.log('New URL:', newUrl);
+
+      if (newUrl) {
+        setServerUrl(newUrl);
+        setIsSearching(false);
+      } else {
+        setError('Could not find server on local network.');
+        setIsSearching(false);
+      }
+    } catch (err) {
+      console.error('[Discovery] Error during discovery:', err);
+      setError('An error occurred while searching for the server.');
+      setIsSearching(false);
+    }
+  };
 
   const handleEnterTerminal = () => {
     navigation.replace('Login');
+  };
+
+  const renderStatus = () => {
+    if (isSearching) {
+      return (
+        <View style={styles.statusCard}>
+          <ActivityIndicator size="large" color="#FFD700" />
+          <Text style={styles.statusText}>Searching for Server...</Text>
+          <Text style={styles.ipLabel}>Scanning local network...</Text>
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <View style={styles.statusCard}>
+          <View style={[styles.successIcon, { backgroundColor: '#EF4444' }]}>
+            <Text style={styles.check}>✕</Text>
+          </View>
+          <Text style={styles.statusText}>Server Not Found</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={[styles.button, { marginTop: 20 }]}
+            onPress={discoverServer}
+          >
+            <Text style={styles.buttonText}>Retry Scan</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.statusCard}>
+        <View style={styles.successIcon}>
+          <Text style={styles.check}>✓</Text>
+        </View>
+        <Text style={styles.statusText}>Connected to Server</Text>
+        <Text style={styles.ipLabel}>Server URL:</Text>
+        <Text style={styles.ipText}>{serverUrl}</Text>
+        <TouchableOpacity style={styles.button} onPress={handleEnterTerminal}>
+          <Text style={styles.buttonText}>Enter Terminal</Text>
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   return (
@@ -26,23 +104,13 @@ const WelcomeScreen = () => {
       <StatusBar barStyle="light-content" />
       <View style={styles.content}>
         <Text style={styles.brand}>HiPalz</Text>
-        <Text style={styles.title}>Restaurant Terminal</Text>
-
-        <View style={styles.statusCard}>
-          <View style={styles.successIcon}>
-            <Text style={styles.check}>✓</Text>
-          </View>
-          <Text style={styles.statusText}>Connected to Server</Text>
-          <Text style={styles.ipLabel}>Server URL:</Text>
-          <Text style={styles.ipText}>{FIXED_SERVER_BASE_URL}</Text>
-          <TouchableOpacity style={styles.button} onPress={handleEnterTerminal}>
-            <Text style={styles.buttonText}>Enter Terminal</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.title}>HiPalz Restaurant Terminal</Text>
+        {renderStatus()}
       </View>
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          v1.0.0 • Connected to Local Network
+          v1.1.0 •{' '}
+          {isSearching ? 'Detecting Network...' : 'Connected to Local Network'}
         </Text>
       </View>
     </SafeAreaView>
@@ -106,6 +174,12 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     marginBottom: 30,
     fontWeight: '700',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginBottom: 10,
   },
   successIcon: {
     width: 60,

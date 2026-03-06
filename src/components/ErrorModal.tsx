@@ -26,6 +26,14 @@ export default function ErrorModal() {
       case 'go_home':
         resetToTables();
         break;
+      case 'reconnect':
+        try {
+          const { discoveryService } = require('../services/discoveryService');
+          await discoveryService.reDiscoverServer();
+        } catch (e) {
+          console.error('[ErrorModal] Reconnect failed:', e);
+        }
+        break;
       case 'refresh':
         break;
       case 'dismiss':
@@ -47,10 +55,18 @@ export default function ErrorModal() {
               {actions.map(({ type, label }) => (
                 <TouchableOpacity
                   key={`${type}-${label}`}
-                  style={[styles.button, type === 'dismiss' && styles.buttonPrimary]}
+                  style={[
+                    styles.button,
+                    type === 'dismiss' && styles.buttonPrimary,
+                  ]}
                   onPress={() => handleAction(type)}
                 >
-                  <Text style={[styles.buttonText, type === 'dismiss' && styles.buttonTextPrimary]}>
+                  <Text
+                    style={[
+                      styles.buttonText,
+                      type === 'dismiss' && styles.buttonTextPrimary,
+                    ]}
+                  >
                     {label}
                   </Text>
                 </TouchableOpacity>

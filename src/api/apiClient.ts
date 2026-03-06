@@ -1,8 +1,8 @@
 import axios, { AxiosError } from 'axios';
 import { CONFIG } from '../config/env';
 import { API_SERVER_SECRET, TOKEN } from '../config/serverConfig';
-import type { ApiResponse } from './types';
 import { ApiError } from './ApiError';
+import type { ApiResponse } from './types';
 
 const apiClient = axios.create({
   baseURL: CONFIG.API_BASE_URL,
@@ -24,7 +24,7 @@ export const setAuthToken = (token: string | null) => {
 
 apiClient.interceptors.request.use(config => {
   config.headers['api-server-secret'] = API_SERVER_SECRET;
-  config.headers['x-pos-token'] =  TOKEN;
+  config.headers['x-pos-token'] = TOKEN;
   return config;
 });
 
@@ -38,6 +38,32 @@ apiClient.interceptors.response.use(
     return res;
   },
   (err: AxiosError<ApiResponse<unknown>>) => {
+    const config = err.config;
+    const isNetworkError = !err.response && !err.code?.includes('ABORT');
+
+    // Auto-discovery on network error
+    if (isNetworkError && config && !(config as any)._isRetry) {
+      (config as any)._isRetry = true;
+      console.log(
+        '[API] Network error detected, trying to re-discover server...',
+      );
+
+      // Dynamic import to avoid circular dependency
+      return require('../services/discoveryService')
+        .discoveryService.reDiscoverServer()
+        .then((newUrl: string | null) => {
+          if (newUrl) {
+            console.log('[API] Server re-discovered, retrying request...');
+            config.baseURL = newUrl;
+            return apiClient(config);
+          }
+          throw err;
+        })
+        .catch(() => {
+          throw err;
+        });
+    }
+
     const status = err.response?.status;
     const body = err.response?.data;
     const code = body?.statusCode ?? status ?? 500;
@@ -45,7 +71,12 @@ apiClient.interceptors.response.use(
     if (typeof code === 'number' && code >= 400) {
       throw new ApiError(code, message, body);
     }
-    if (body && typeof body === 'object' && 'success' in body && body.success === false) {
+    if (
+      body &&
+      typeof body === 'object' &&
+      'success' in body &&
+      body.success === false
+    ) {
       throw new ApiError(code, message, body);
     }
     throw new ApiError(status ?? 500, message, body);

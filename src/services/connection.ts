@@ -1,5 +1,6 @@
 // connection.ts
 // Utility to find the Hipalz server on the local network for your Android App.
+// Features UDP Broadcast (fast) discovery.
 
 /**
  * Pings a specific IP to see if the server is running there.
@@ -7,7 +8,7 @@
 export async function pingIp(
   ip: string,
   port = 3333,
-  timeoutMs = 800,
+  timeoutMs = 1000,
   signal?: AbortSignal,
 ): Promise<{ ip: string; success: boolean }> {
   const url = `http://${ip}:${port}/ping`;
@@ -15,7 +16,6 @@ export async function pingIp(
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
 
-    // If external signal is aborted, abort our local fetch too
     if (signal) {
       signal.addEventListener('abort', () => controller.abort());
     }
@@ -28,144 +28,243 @@ export async function pingIp(
     if (response.ok) {
       const data = await response.json();
       if (data.message === 'pong') {
-        console.log(`[Discovery] SUCCESS: Found server at ${ip}:${port}`);
         return { ip: `${ip}:${port}`, success: true };
       }
     }
-  } catch (err) {
-    // Timeout or network error - ignore and let it fail
-  }
-  console.log(`[Discovery] FAILED: No response from ${ip}:${port}`);
+  } catch (err) {}
   return { ip: `${ip}:${port}`, success: false };
 }
 
+import UdpSocket from 'react-native-udp';
+
 /**
- * Sweeps an array of IPs using a "chunking/binary search" concurrent method.
- * We launch blocks of IPs in parallel and use Promise.any to immediately
- * resolve when we get the first successful ping, making it lightning fast.
+ * PRODUCTION SAFE UDP Discovery
+ * Standard way to find local services without IP scanning.
  */
-/**
- * Sweeps an array of IPs using a "Throttled Window" concurrent method.
- * Maintains a fixed pool of active pings, refills as they finish,
- * and immediately aborts all others when a server is found.
- */
-async function throttledParallelScan(
-  ips: string[],
-  concurrency = 50,
-): Promise<{ ip: string; success: boolean } | null> {
-  const controller = new AbortController();
-  let foundResult: { ip: string; success: boolean } | null = null;
-  let currentIndex = 0;
+export async function discoverServerByUDP(
+  port = 3334,
+  timeoutMs = 5000,
+  deviceIp?: string,
+): Promise<{ ip: string; success: boolean }> {
+  console.log('[UDP-Discovery] Initializing...');
+  return new Promise(resolve => {
+    let socket: any = null;
+    let resolved = false;
+    let socketClosed = false; // Step 1: Flag
+    let timer: any = null;
 
-  console.log(
-    `[Discovery] Scanning ${ips.length} IPs with window size ${concurrency}...`,
-  );
-
-  const worker = async () => {
-    while (
-      currentIndex < ips.length &&
-      !foundResult &&
-      !controller.signal.aborted
-    ) {
-      const ip = ips[currentIndex++];
-      if (!ip) break;
-
+    // Step 2: Production Safe Cleanup
+    const cleanup = () => {
+      if (socketClosed) return;
+      socketClosed = true;
       try {
-        const result = await pingIp(ip, 3333, 800, controller.signal);
-        if (result.success && !foundResult) {
-          foundResult = result;
-          controller.abort(); // KILL all other "zombie" requests immediately
+        if (socket) {
+          // Keep the error listener but make it a no-op to catch trailing events
+          // and prevent "Unhandled error" crash.
+          socket.removeAllListeners('message');
+          socket.removeAllListeners('listening');
+          socket.close();
+        }
+      } catch (e) {}
+    };
+
+    const finish = (result: { ip: string; success: boolean }) => {
+      if (!resolved) {
+        resolved = true;
+        if (timer) clearTimeout(timer);
+        cleanup();
+        resolve(result);
+      }
+    };
+
+    try {
+      socket = UdpSocket.createSocket({ type: 'udp4' });
+
+      timer = setTimeout(() => {
+        console.log('[UDP-Discovery] Timeout reached');
+        finish({ ip: '', success: false });
+      }, timeoutMs);
+
+      // Step 3: Fixed Error Handler
+      socket.on('error', (err: any) => {
+        if (socketClosed || resolved) return; // SWALLOW errors if already done
+        console.warn('[UDP-Discovery] Socket Error:', err?.message || err);
+        finish({ ip: '', success: false });
+      });
+
+      socket.on('message', (msg: any, rinfo: any) => {
+        if (socketClosed || resolved) return;
+        try {
+          const data = JSON.parse(msg.toString());
+          console.log('[UDP-Discovery] Found server at:', rinfo.address, data);
+          finish({
+            ip: `${rinfo.address}:${data.port || 3333}`,
+            success: true,
+          });
+        } catch (e) {
+          console.warn(
+            '[UDP-Discovery] Received invalid JSON:',
+            msg.toString(),
+          );
+        }
+      });
+
+      // Step 4: Protected Bind & Broadcast
+      socket.bind(0, (err: any) => {
+        if (resolved || socketClosed || !socket) return;
+
+        if (err) {
+          console.error('[UDP-Discovery] Bind Error:', err);
+          finish({ ip: '', success: false });
           return;
         }
-      } catch (err) {
-        // Skip errors/aborts
-      }
+
+        try {
+          if (socketClosed || resolved || !socket) return;
+
+          const message = 'DISCOVER_HIPALZ';
+
+          // EXTRA GUARD: Wrap everything to prevent "Socket is closed" logs
+          try {
+            if (typeof socket.setBroadcast === 'function') {
+              socket.setBroadcast(true);
+            }
+          } catch (e) {}
+
+          // Optimization: Dynamic Broadcast Address + Common Fallbacks (Always try both)
+          const targetSet = new Set(['255.255.255.255']);
+
+          if (
+            deviceIp &&
+            !deviceIp.includes(':') &&
+            deviceIp.split('.').length === 4
+          ) {
+            const parts = deviceIp.split('.');
+            targetSet.add(`${parts[0]}.${parts[1]}.${parts[2]}.255`);
+          }
+
+          // ALWAYS try common subnets as fallback
+          targetSet.add('192.168.0.255');
+          targetSet.add('192.168.1.255');
+          targetSet.add('192.168.43.255');
+          targetSet.add('192.168.137.255');
+
+          const targetAddrs = Array.from(targetSet);
+
+          targetAddrs.forEach(broadcastAddr => {
+            try {
+              if (socketClosed || resolved || !socket) return;
+              socket.send(
+                message,
+                0,
+                message.length,
+                port,
+                broadcastAddr,
+                (sendErr: any) => {
+                  if (!sendErr) {
+                    console.log(
+                      `[UDP-Discovery] Broadcast sent to ${broadcastAddr}`,
+                    );
+                  }
+                },
+              );
+            } catch (e) {}
+          });
+        } catch (e) {}
+      });
+    } catch (e: any) {
+      console.error('[UDP-Discovery] Init Error:', e.message);
+      finish({ ip: '', success: false });
     }
-  };
+  });
+}
 
-  // Launch initial batch of workers
-  const pool = Array.from(
-    { length: Math.min(concurrency, ips.length) },
-    worker,
-  );
-  await Promise.all(pool);
+import Zeroconf from 'react-native-zeroconf';
 
-  return foundResult;
+/**
+ * mDNS / Bonjour Discovery (Reliable Layer)
+ */
+export async function discoverServerByZeroconf(
+  timeoutMs = 5000,
+): Promise<{ ip: string; success: boolean }> {
+  console.log('[mDNS-Discovery] Initializing...');
+  return new Promise(resolve => {
+    const zeroconf = new Zeroconf();
+    let resolved = false;
+    let timer: any = null;
+
+    const finish = (result: { ip: string; success: boolean }) => {
+      if (!resolved) {
+        resolved = true;
+        if (timer) clearTimeout(timer);
+        try {
+          zeroconf.stop();
+          zeroconf.removeAllListeners();
+        } catch (e) {}
+        resolve(result);
+      }
+    };
+
+    zeroconf.on('start', () => console.log('[mDNS-Discovery] Scanning...'));
+    zeroconf.on('error', (err: any) => {
+      console.warn('[mDNS-Discovery] Error:', err);
+      finish({ ip: '', success: false });
+    });
+
+    zeroconf.on('resolved', (service: any) => {
+      // Look for our specific service hipalz-*
+      if (service.name && service.name.includes('hipalz')) {
+        const ip = service.addresses?.[0];
+        const port = service.port || 3333;
+        if (ip) {
+          console.log('[mDNS-Discovery] Found server:', ip, port);
+          finish({ ip: `${ip}:${port}`, success: true });
+        }
+      }
+    });
+
+    // Start scanning for HTTP services (matches server's bonjour type)
+    zeroconf.scan('http', 'tcp', 'local.');
+
+    timer = setTimeout(() => {
+      console.log('[mDNS-Discovery] Timeout reached');
+      finish({ ip: '', success: false });
+    }, timeoutMs);
+  });
 }
 
 /**
  * Main function to find the server IP.
- * Works on Wi-Fi, Mobile Hotspot, and all IP configurations.
- *
- * @param deviceIp - Optional: If you pass the Android device's own IP, it scans its exact subnet first (fastest).
- * @param totalTimeoutMs - Default 15s. If the entire scan exceeds this, it aborts.
+ * Runs UDP and mDNS in parallel for maximum speed and reliability.
  */
 export async function findServerConnection(
   deviceIp?: string,
-  totalTimeoutMs = 15000,
+  totalTimeoutMs = 10000,
 ): Promise<{ ip: string; success: boolean }> {
-  const possibleIps: string[] = [];
-
   console.log(
-    `[Discovery] Starting server scan (Timeout: ${totalTimeoutMs}ms)...`,
+    `[Discovery] Starting search (Current Device IP: ${
+      deviceIp || 'Unknown'
+    })...`,
   );
 
-  // Create a timeout promise
-  const timeoutPromise = new Promise<null>(resolve =>
-    setTimeout(() => {
-      console.log(
-        `[Discovery] Global scan timeout reached (${totalTimeoutMs}ms)`,
-      );
-      resolve(null);
-    }, totalTimeoutMs),
-  );
+  try {
+    // Run both discovery methods in parallel
+    // We use Promise.race but wrapped to only resolve if SUCCESSful,
+    // or wait for both if both fail.
+    const results = await Promise.all([
+      discoverServerByUDP(3334, 5000, deviceIp),
+      discoverServerByZeroconf(5000),
+    ]);
 
-  // 1. If we have the device IP (e.g. 192.168.43.125 from Android Hotspot),
-  // scan its local /24 subnet first, as the server is highly likely to be on it.
-  if (deviceIp) {
-    const parts = deviceIp.split('.');
-    if (parts.length === 4) {
-      const base = `${parts[0]}.${parts[1]}.${parts[2]}.`;
-      for (let i = 1; i <= 254; i++) {
-        possibleIps.push(`${base}${i}`);
-      }
+    const success = results.find(r => r.success);
+    if (success) {
+      console.log(`[Discovery] Server found: ${success.ip}`);
+      return success;
     }
+  } catch (e) {
+    console.warn('[Discovery] Error during parallel search:', e);
   }
 
-  // 2. Add common fallback network ranges if not in the list already.
-  // Including 192.168.* and 10.* subnets for Wi-Fi and Hotspots.
-  const commonPrefixes = [
-    '192.168.1.', // Common Wi-Fi
-    '192.168.0.', // Common Wi-Fi
-    '192.168.43.', // Android Hotspot Default
-    '192.168.137.', // Windows Hotspot Default
-    '192.168.29.', // JioFiber / Local Hubs
-    '10.0.2.', // Android Emulator loopback
-    '10.0.0.', // Corporate internal subnets
-  ];
-
-  for (const prefix of commonPrefixes) {
-    // Avoid strictly re-adding the subnet if it was already added by the deviceIP rule
-    if (deviceIp && deviceIp.startsWith(prefix)) continue;
-
-    for (let i = 1; i <= 254; i++) {
-      possibleIps.push(`${prefix}${i}`);
-    }
-  }
-
-  // You wanted a "binary search method to iterate over ip"
-  // Instead of scanning sequentially which takes forever, we batch them in chunks of 50
-  // Use Throttled Window to protect resources and kill zombies
-  const result = await Promise.race([
-    throttledParallelScan(possibleIps, 60),
-    timeoutPromise,
-  ]);
-
-  if (result) {
-    return result;
-  }
-
-  // If server is absolutely not found on any network or timeout reached
-  console.log(`[Discovery] Scan ended. No server found.`);
+  console.log(`[Discovery] All discovery layers failed.`);
   return { ip: '', success: false };
 }
