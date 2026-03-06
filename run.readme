@@ -1,96 +1,138 @@
-# HiPalz Restaurant Terminal - Run Guide
+# Run commands
 
-This guide contains everything you need to set up, build, and run the HiPalz Restaurant Terminal Android application.
-
-## 🛠️ Required Tools
-
-Before starting, ensure your machine has the following installed:
-
-| Tool | Version | Purpose |
-|------|---------|---------|
-| **Node.js** | 20+ | JavaScript runtime |
-| **JDK** | 17 | Required for React Native 0.83+ |
-| **Android Studio** | Latest | Android development environment |
-| **React Native CLI** | Latest | Management of the mobile app |
+All commands are run from the **project root** unless noted.
 
 ---
 
-## 🚀 Getting Started
+## List connected devices
 
-### 1. Install Dependencies
-Navigate to the project root and run:
-```powershell
-npm install
+Check if your phone or emulator is detected:
+
+```bash
+adb devices
 ```
 
-### 2. Verify Environment
-Run the React Native doctor to ensure your SDKs and JDK are correctly configured:
-```powershell
-npx react-native doctor
+**Git Bash (if `adb` not found):**
+
+```bash
+"$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe" devices
 ```
 
-### 3. Clean Build Cache (Optional but Recommended)
-If you encounter build errors, clean the Gradle cache:
-```powershell
+---
+
+## 1. Start Metro (JS bundler)
+
+Run first in one terminal. Keep it running.
+
+```bash
+npm start
+```
+
+---
+
+## 2. Run on Android
+
+**Emulator or USB device** (one device must be connected or emulator running):
+
+```bash
+npm run android
+```
+
+**Wait for emulator to boot, then run app:**
+
+```bash
+npm run android:wait
+```
+
+(Or run the script, then in another terminal: `npm run android`)
+
+**Script – wait for emulator (Windows):**
+
+```bash
+scripts\wait-for-emulator.bat
+```
+
+Then in another terminal:
+
+```bash
+npm run android
+```
+
+---
+
+## 3. Set Android/Java env (Windows)
+
+If `adb` or `java` is not in PATH, run once in the same CMD/PowerShell before `npm run android`:
+
+**CMD or PowerShell (from project root):**
+
+```bash
+scripts\set-android-env.bat
+```
+
+**Git Bash (from project root):** run the batch in CMD so env is set, or use:
+
+```bash
+cmd //c scripts/set-android-env.bat
+```
+
+Then:
+
+```bash
+npm run android
+```
+
+---
+
+## 4. Build release APK
+
+```bash
+npm run android:release
+```
+
+APK path after build:
+
+```
+android\app\build\outputs\apk\release\app-release.apk
+```
+
+---
+
+## 5. Install release APK on connected device
+
+Phone or emulator connected via USB. From project root:
+
+```bash
 cd android
-.\gradlew clean
-cd ..
+gradlew.bat installRelease
+```
+
+Or with adb (after building release once):
+
+```bash
+adb install android\app\build\outputs\apk\release\app-release.apk
 ```
 
 ---
 
-## 📱 Running the App
+## 6. Check connected devices
 
-### Option A: Physical Android Device (Recommended)
-1. Connect your device via USB.
-2. Enable **USB Debugging** in Developer Options.
-3. Verify connection: `adb devices`.
-4. Run the app:
-```powershell
-npx react-native run-android
+```bash
+adb devices
 ```
 
-### Option B: Android Emulator
-1. Open Android Studio → Device Manager.
-2. Start your Virtual Device (API Level 34+ recommended).
-3. Run the app:
-```powershell
-npx react-native run-android
-```
+Shows emulator and/or USB phone. Use this to confirm the phone is detected before `npm run android`.
 
 ---
 
-## 🔍 Server Discovery (New Feature)
+## 7. Quick reference
 
-The app now features an **Automatic Server Discovery** mechanism. You no longer need to manually configure IP addresses in the code.
-
-1. **Wait for Scan**: On the "Welcome Screen", the app will automatically scan your local network for the HiPalz server.
-2. **Ensure Network**: Make sure your phone/emulator is on the **same Wi-Fi network** as the server.
-3. **Connection**: Once found, the server URL will be displayed, and you can enter the terminal.
-4. **Logging**: All scan attempts are logged in the console for debugging. Look for `[Discovery]` tags.
-
----
-
-## 📦 Production Builds
-
-### Generate Debug APK
-```powershell
-cd android
-.\gradlew assembleDebug
-```
-*Output: `android/app/build/outputs/apk/debug/app-debug.apk`*
-
-### Generate Release APK
-```powershell
-cd android
-.\gradlew assembleRelease
-```
-*Output: `android/app/build/outputs/apk/release/app-release.apk`*
-
----
-
-## 🛠️ Troubleshooting
-
-- **Metro Not Connecting**: Run `npx react-native start --reset-cache`.
-- **Java/SDK Paths**: Ensure `JAVA_HOME` and `ANDROID_HOME` are set in your System Environment Variables.
-- **Port 3333**: Ensure the HiPalz server is running on port 3333 and not blocked by a firewall.
+| Goal                    | Command                    |
+|-------------------------|----------------------------|
+| Start Metro             | `npm start`                |
+| Run app (device/emulator)| `npm run android`         |
+| Wait emulator + run     | `npm run android:wait`     |
+| Set env (Windows)       | `scripts\set-android-env.bat` |
+| Build release APK        | `npm run android:release`  |
+| Install release on device| `cd android` then `gradlew.bat installRelease` |
+| List devices            | `adb devices`              |

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import type { AreaWithTables } from '../../hooks/useAreasAndTables';
 import type { Table } from '../../api/types';
+import SearchInput from '../SearchInput';
 
 interface EmptyTablesModalProps {
   isOpen: boolean;
@@ -23,12 +24,33 @@ export default function EmptyTablesModal({
   groupedTables,
   onSelectTable,
 }: EmptyTablesModalProps) {
-  const emptyGrouped = groupedTables
-    .map(({ area, tables }) => ({
-      area,
-      tables: tables.filter(t => (t.tableStatus ?? 'EMPTY') === 'EMPTY'),
-    }))
-    .filter(g => g.tables.length > 0);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const emptyGrouped = useMemo(
+    () =>
+      groupedTables
+        .map(({ area, tables }) => ({
+          area,
+          tables: tables.filter(t => (t.tableStatus ?? 'EMPTY') === 'EMPTY'),
+        }))
+        .filter(g => g.tables.length > 0),
+    [groupedTables],
+  );
+
+  const filteredGrouped = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return emptyGrouped;
+    return emptyGrouped
+      .map(({ area, tables }) => ({
+        area,
+        tables: tables.filter(
+          t =>
+            t.name.toLowerCase().includes(q) ||
+            (t.hiCode?.toLowerCase().includes(q) ?? false),
+        ),
+      }))
+      .filter(g => g.tables.length > 0);
+  }, [emptyGrouped, searchQuery]);
 
   const handleSelect = (table: Table) => {
     onSelectTable(table);
@@ -45,11 +67,21 @@ export default function EmptyTablesModal({
               <Text style={styles.closeBtnText}>Close</Text>
             </TouchableOpacity>
           </View>
-          {emptyGrouped.length === 0 ? (
-            <Text style={styles.empty}>No empty tables.</Text>
+          <View style={styles.searchWrap}>
+            <SearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search tables by name or code…"
+              style={styles.searchInput}
+            />
+          </View>
+          {filteredGrouped.length === 0 ? (
+            <Text style={styles.empty}>
+              {emptyGrouped.length === 0 ? 'No empty tables.' : 'No tables match your search.'}
+            </Text>
           ) : (
             <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-              {emptyGrouped.map(({ area, tables }) => (
+              {filteredGrouped.map(({ area, tables }) => (
                 <View key={area.id} style={styles.section}>
                   <Text style={styles.areaName}>{area.name}</Text>
                   <View style={styles.grid}>
@@ -78,13 +110,12 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
   },
   content: {
+    flex: 1,
     backgroundColor: '#1E293B',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '70%',
   },
   header: {
     flexDirection: 'row',
@@ -97,8 +128,10 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '800', color: '#F8FAFC' },
   closeBtn: { padding: 8 },
   closeBtnText: { color: '#FFD700', fontWeight: '600' },
+  searchWrap: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#334155' },
+  searchInput: {},
   empty: { padding: 24, color: '#64748B', textAlign: 'center' },
-  scroll: { maxHeight: 400 },
+  scroll: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 32 },
   section: { marginBottom: 20 },
   areaName: { fontSize: 16, fontWeight: '600', color: '#94A3B8', marginBottom: 12 },

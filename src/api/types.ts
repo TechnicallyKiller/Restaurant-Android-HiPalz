@@ -243,6 +243,8 @@ export interface BillPreviewItem {
   quantity: number;
   itemPrice: number;
   containerCharge?: number;
+  /** Portion/variant name when item has a variant (e.g. "Half", "Full") */
+  variantName?: string | null;
   addonGroups?: BillPreviewItemAddonGroup[];
   subtotal?: number;
 }

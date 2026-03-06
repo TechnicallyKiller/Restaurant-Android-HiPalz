@@ -12,6 +12,7 @@ import { useTableStore } from '../store/tableStore';
 import { useBillStore } from '../store/billStore';
 import { useAuthStore } from '../store/authStore';
 import {
+  useAreasAndTables,
   useBillPreview,
   useBillGenerate,
   useBillByTable,
@@ -19,6 +20,7 @@ import {
 } from '../hooks';
 import { createTableInstance, printBill, clubSplits, getSplitsByBillId } from '../api';
 import { getErrorMessage } from '../utils/errorHandling';
+import { normalizeBillPreviewData } from '../utils/billUtils';
 import type { BillPreviewData } from '../api/types';
 import BillDiscountModal from '../components/bill/BillDiscountModal';
 import BillServiceChargeModal from '../components/bill/BillServiceChargeModal';
@@ -27,6 +29,7 @@ import AddTipModal from '../components/bill/AddTipModal';
 import SplitBillModal from '../components/bill/SplitBillModal';
 import SettleModal from '../components/bill/SettleModal';
 import BillSummary from '../components/bill/BillSummary';
+import BillItemGrid from '../components/bill/BillItemGrid';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -40,6 +43,7 @@ const BillScreen = ({ navigation }: Props) => {
   const setBillForTable = useBillStore(s => s.setBillForTable);
   const hasBill = Boolean(bill?.id);
 
+  const { refetch: refetchTables } = useAreasAndTables();
   const { fetchPreview, isLoading: previewLoading } = useBillPreview();
   const { generate, isGenerating } = useBillGenerate();
   const { refresh, isRefreshing } = useBillByTable(currentTable?.id);
@@ -68,7 +72,7 @@ const BillScreen = ({ navigation }: Props) => {
 
   useEffect(() => {
     if (bill?.isSplit && bill?.id) {
-      getSplitsByBillId(bill.id).then(setVariants);
+      getSplitsByBillId(bill.id).then(v => setVariants(v.map(normalizeBillPreviewData)));
     } else {
       setVariants(null);
       setSelectedSplitBillId(null);
@@ -94,6 +98,15 @@ const BillScreen = ({ navigation }: Props) => {
     if (currentTable?.id) await refresh();
   };
 
+  /** After discount/service charge/tip/extras: refetch bill and, if split, refetch variants so UI updates. */
+  const refetchBillAndVariants = async () => {
+    await refetchBill();
+    if (bill?.isSplit && bill?.id) {
+      const v = (await getSplitsByBillId(bill.id)).map(normalizeBillPreviewData);
+      setVariants(v);
+    }
+  };
+
   const handleCreateInstance = () => {
     if (!bill?.id) return;
     Alert.alert(
@@ -108,6 +121,7 @@ const BillScreen = ({ navigation }: Props) => {
             try {
               await createTableInstance({ billId: bill.id, staffId });
               setBillForTable(currentTable!.id, null);
+              refetchTables();
               navigation.navigate('Tables');
             } catch (err) {
               Alert.alert('Failed', getErrorMessage(err));
@@ -149,18 +163,21 @@ const BillScreen = ({ navigation }: Props) => {
     setSettleVisible(false);
     if (allPaid === true) {
       setBillForTable(currentTable!.id, null);
+      refetchTables();
       navigation.navigate('Tables');
       return;
     }
     await refetchBill();
     if (bill?.isSplit && bill?.id) {
-      const v = await getSplitsByBillId(bill.id);
+      const v = (await getSplitsByBillId(bill.id)).map(normalizeBillPreviewData);
       setVariants(v);
       if (v.length > 0 && v.every(x => x.status === 'PAID')) {
         setBillForTable(currentTable!.id, null);
+        refetchTables();
         navigation.navigate('Tables');
       }
     }
+    refetchTables();
   };
 
   if (!currentTable) {
@@ -198,160 +215,154 @@ const BillScreen = ({ navigation }: Props) => {
           <Text style={styles.emptyText}>No bill data. Try generating bill from POS.</Text>
         </View>
       ) : (
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
-          {bill?.isSplit && variants && variants.length > 0 && (
-            <View style={styles.variantRow}>
-              {variants.map((v, i) => (
-                <TouchableOpacity
-                  key={v.id ?? i}
-                  style={[
-                    styles.variantBtn,
-                    v.id === selectedSplitBillId && styles.variantBtnActive,
-                    v.status === 'PAID' && styles.variantBtnPaid,
-                  ]}
-                  onPress={() => setSelectedSplitBillId(v.id ?? null)}
-                >
-                  <Text style={styles.variantBtnText}>
-                    Bill {i + 1} · ₹{v.payable?.toFixed(0) ?? '0'}
-                  </Text>
-                  {v.status === 'PAID' && <Text style={styles.variantPaidBadge}>Paid</Text>}
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-          {displayBill?.items?.map(item => (
-            <View key={item.id} style={styles.billRow}>
-              <Text style={styles.billItemName}>
-                {item.itemName} × {item.quantity}
-              </Text>
-              <Text style={styles.billItemPrice}>
-                ₹{((item.itemPrice * item.quantity) + (item.containerCharge ?? 0)).toFixed(0)}
-              </Text>
-            </View>
-          ))}
-          <View style={styles.divider} />
-          {displayBill && (
-            <BillSummary
-              data={displayBill}
-              billId={displayBill.id ?? bill?.id}
-              onRemoveDiscountClick={() => setDiscountVisible(true)}
-              onRemoveServiceChargeClick={() => setServiceChargeVisible(true)}
-              onRemoveTipClick={() => setTipVisible(true)}
-              onRemoveContainerChargeClick={() => setExtrasVisible(true)}
-              onRemoveDeliveryChargeClick={() => setExtrasVisible(true)}
-              onAddTipClick={() => setTipVisible(true)}
-              showAddTipButton={false}
-            />
-          )}
+        <View style={styles.contentWrap}>
+          <ScrollView
+            style={styles.content}
+            contentContainerStyle={[styles.contentInner, styles.contentInnerScroll]}
+            showsVerticalScrollIndicator={true}
+          >
+            {bill?.isSplit && variants && variants.length > 0 && (
+              <View style={styles.variantRow}>
+                {variants.map((v, i) => (
+                  <TouchableOpacity
+                    key={v.id ?? i}
+                    style={[
+                      styles.variantBtn,
+                      v.id === selectedSplitBillId && styles.variantBtnActive,
+                      v.status === 'PAID' && styles.variantBtnPaid,
+                    ]}
+                    onPress={() => setSelectedSplitBillId(v.id ?? null)}
+                  >
+                    <Text style={styles.variantBtnText}>
+                      Bill {i + 1} · ₹{v.payable?.toFixed(0) ?? '0'}
+                    </Text>
+                    {v.status === 'PAID' && <Text style={styles.variantPaidBadge}>Paid</Text>}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            <BillItemGrid items={displayBill?.items ?? []} />
+          </ScrollView>
 
-          {hasBill && (
-            <View style={styles.actionRow}>
-              <TouchableOpacity style={styles.smallBtn} onPress={() => setDiscountVisible(true)}>
-                <Text style={styles.smallBtnText}>Discount</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.smallBtn} onPress={() => setServiceChargeVisible(true)}>
-                <Text style={styles.smallBtnText}>Service charge</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.smallBtn} onPress={() => setExtrasVisible(true)}>
-                <Text style={styles.smallBtnText}>Extras</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.smallBtn} onPress={() => setTipVisible(true)}>
-                <Text style={styles.smallBtnText}>Add tip</Text>
-              </TouchableOpacity>
-              {!bill?.isSplit && (
-                <TouchableOpacity style={styles.smallBtn} onPress={() => setSplitVisible(true)}>
-                  <Text style={styles.smallBtnText}>Split bill</Text>
+          <View style={styles.billFooter}>
+            {displayBill && (
+              <BillSummary
+                data={displayBill}
+                billId={displayBill.id ?? bill?.id}
+                onRemoveDiscountClick={() => setDiscountVisible(true)}
+                onRemoveServiceChargeClick={() => setServiceChargeVisible(true)}
+                onRemoveTipClick={() => setTipVisible(true)}
+                onRemoveContainerChargeClick={() => setExtrasVisible(true)}
+                onRemoveDeliveryChargeClick={() => setExtrasVisible(true)}
+                onAddTipClick={() => setTipVisible(true)}
+                showAddTipButton={false}
+                onRefresh={refetchBill}
+              />
+            )}
+            {hasBill && (
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={styles.smallBtn} onPress={() => setDiscountVisible(true)}>
+                  <Text style={styles.smallBtnText}>Discount</Text>
                 </TouchableOpacity>
-              )}
-              {bill?.isSplit && (
+                <TouchableOpacity style={styles.smallBtn} onPress={() => setServiceChargeVisible(true)}>
+                  <Text style={styles.smallBtnText}>Service charge</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.smallBtn} onPress={() => setExtrasVisible(true)}>
+                  <Text style={styles.smallBtnText}>Extras</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.smallBtn} onPress={() => setTipVisible(true)}>
+                  <Text style={styles.smallBtnText}>Add tip</Text>
+                </TouchableOpacity>
+                {!bill?.isSplit && (
+                  <TouchableOpacity style={styles.smallBtn} onPress={() => setSplitVisible(true)}>
+                    <Text style={styles.smallBtnText}>Split bill</Text>
+                  </TouchableOpacity>
+                )}
+                {bill?.isSplit && (
+                  <TouchableOpacity
+                    style={[styles.smallBtn, merging && styles.btnDisabled]}
+                    onPress={handleMergeBill}
+                    disabled={merging}
+                  >
+                    <Text style={styles.smallBtnText}>{merging ? '…' : 'Merge bill'}</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
-                  style={[styles.smallBtn, merging && styles.btnDisabled]}
-                  onPress={handleMergeBill}
-                  disabled={merging}
+                  style={[styles.smallBtn, printing && styles.btnDisabled]}
+                  onPress={handlePrint}
+                  disabled={printing}
                 >
-                  <Text style={styles.smallBtnText}>{merging ? '…' : 'Merge bill'}</Text>
+                  <Text style={styles.smallBtnText}>{printing ? '…' : 'Print'}</Text>
                 </TouchableOpacity>
-              )}
+              </View>
+            )}
+            {!hasBill ? (
               <TouchableOpacity
-                style={[styles.smallBtn, printing && styles.btnDisabled]}
-                onPress={handlePrint}
-                disabled={printing}
+                style={[styles.primaryBtn, isGenerating && styles.btnDisabled]}
+                onPress={handleGenerate}
+                disabled={isGenerating}
               >
-                <Text style={styles.smallBtnText}>{printing ? '…' : 'Print'}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {!hasBill ? (
-            <TouchableOpacity
-              style={[styles.primaryBtn, isGenerating && styles.btnDisabled]}
-              onPress={handleGenerate}
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <ActivityIndicator color="#0F172A" size="small" />
-              ) : (
-                <Text style={styles.primaryBtnText}>Generate bill</Text>
-              )}
-            </TouchableOpacity>
-          ) : (
-            <>
-              {displayBill?.status !== 'PAID' && (
-                <TouchableOpacity
-                  style={[styles.primaryBtn, styles.payBtn]}
-                  onPress={() => setSettleVisible(true)}
-                >
-                  <Text style={styles.primaryBtnText}>Settle</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={[styles.instanceBtn, creatingInstance && styles.btnDisabled]}
-                onPress={handleCreateInstance}
-                disabled={creatingInstance}
-              >
-                {creatingInstance ? (
+                {isGenerating ? (
                   <ActivityIndicator color="#0F172A" size="small" />
                 ) : (
-                  <Text style={styles.instanceBtnText}>Create table instance</Text>
+                  <Text style={styles.primaryBtnText}>Generate bill</Text>
                 )}
               </TouchableOpacity>
-            </>
-          )}
-
-          <TouchableOpacity style={styles.secondaryBtn} onPress={() => refresh()}>
-            <Text style={styles.secondaryBtnText}>Refresh</Text>
-          </TouchableOpacity>
-        </ScrollView>
+            ) : (
+              <>
+                {displayBill?.status !== 'PAID' && (
+                  <TouchableOpacity
+                    style={[styles.primaryBtn, styles.payBtn]}
+                    onPress={() => setSettleVisible(true)}
+                  >
+                    <Text style={styles.primaryBtnText}>Settle</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[styles.instanceBtn, creatingInstance && styles.btnDisabled]}
+                  onPress={handleCreateInstance}
+                  disabled={creatingInstance}
+                >
+                  {creatingInstance ? (
+                    <ActivityIndicator color="#0F172A" size="small" />
+                  ) : (
+                    <Text style={styles.instanceBtnText}>Create table instance</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
       )}
 
       <BillDiscountModal
         visible={discountVisible}
         onClose={() => setDiscountVisible(false)}
-        billId={bill?.id ?? ''}
+        billId={displayBill?.id ?? bill?.id ?? ''}
         staffId={staffId}
-        onSuccess={refetchBill}
+        onSuccess={refetchBillAndVariants}
       />
       <BillServiceChargeModal
         visible={serviceChargeVisible}
         onClose={() => setServiceChargeVisible(false)}
-        billId={bill?.id ?? ''}
+        billId={displayBill?.id ?? bill?.id ?? ''}
         staffId={staffId}
-        onSuccess={refetchBill}
+        onSuccess={refetchBillAndVariants}
       />
       <BillExtrasModal
         visible={extrasVisible}
         onClose={() => setExtrasVisible(false)}
-        billId={bill?.id ?? ''}
+        billId={displayBill?.id ?? bill?.id ?? ''}
         staffId={staffId}
-        onSuccess={refetchBill}
+        onSuccess={refetchBillAndVariants}
       />
       <AddTipModal
         visible={tipVisible}
         onClose={() => setTipVisible(false)}
-        billId={bill?.id ?? ''}
+        billId={displayBill?.id ?? bill?.id ?? ''}
         staffId={staffId}
-        currentTipTotal={bill?.tipTotal ?? 0}
-        onSuccess={refetchBill}
+        currentTipTotal={displayBill?.tipTotal ?? 0}
+        onSuccess={refetchBillAndVariants}
       />
       {displayBill && (
         <SplitBillModal
@@ -359,7 +370,7 @@ const BillScreen = ({ navigation }: Props) => {
           onClose={() => setSplitVisible(false)}
           bill={displayBill}
           staffId={staffId}
-          onSuccess={refetchBill}
+          onSuccess={refetchBillAndVariants}
         />
       )}
 
@@ -390,8 +401,17 @@ const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: 'center' },
   empty: { flex: 1, justifyContent: 'center', padding: 24 },
   emptyText: { color: '#64748B', textAlign: 'center' },
+  contentWrap: { flex: 1 },
   content: { flex: 1 },
-  contentInner: { padding: 16, paddingBottom: 32 },
+  contentInner: { padding: 16 },
+  contentInnerScroll: { paddingBottom: 24 },
+  billFooter: {
+    padding: 16,
+    paddingBottom: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+    backgroundColor: '#0F172A',
+  },
   variantRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   variantBtn: { backgroundColor: '#334155', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
   variantBtnActive: { backgroundColor: '#FFD700' },
@@ -416,8 +436,6 @@ const styles = StyleSheet.create({
   instanceBtn: { backgroundColor: '#334155', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 12 },
   instanceBtnText: { color: '#FFD700', fontWeight: '700', fontSize: 14 },
   primaryBtnText: { color: '#0F172A', fontWeight: '700', fontSize: 16 },
-  secondaryBtn: { paddingVertical: 16, alignItems: 'center', marginTop: 8 },
-  secondaryBtnText: { color: '#94A3B8' },
   btnDisabled: { opacity: 0.6 },
 });
 

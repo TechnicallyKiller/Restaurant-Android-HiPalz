@@ -13,16 +13,25 @@ import { useAuthStore } from '../store/authStore';
 import { useTableStore } from '../store/tableStore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import type { Table, TableStatusType } from '../api/types';
+import type { Table } from '../api/types';
 import type { AreaWithTables } from '../hooks/useAreasAndTables';
 import SearchInput from '../components/SearchInput';
 import ErrorFallback from '../components/ErrorFallback';
 import EmptyTablesModal from '../components/tables/EmptyTablesModal';
-import TableCard from '../components/tables/TableCard';
 import ActiveTableCard from '../components/tables/ActiveTableCard';
 import InstanceBillModal from '../components/tables/InstanceBillModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Tables'>;
+
+/** Main list: only active (non-EMPTY) tables. */
+function filterActiveTables(grouped: AreaWithTables[]): AreaWithTables[] {
+  return grouped
+    .map(({ area, tables }) => ({
+      area,
+      tables: tables.filter(t => (t.tableStatus ?? 'EMPTY') !== 'EMPTY'),
+    }))
+    .filter(g => g.tables.length > 0);
+}
 
 function filterGroupedBySearch(grouped: AreaWithTables[], query: string): AreaWithTables[] {
   const q = query.trim().toLowerCase();
@@ -49,9 +58,10 @@ const TablesScreen = ({ navigation }: Props) => {
   const [startTableModalOpen, setStartTableModalOpen] = useState(false);
   const [instanceBillId, setInstanceBillId] = useState<string | null>(null);
 
+  const activeGrouped = useMemo(() => filterActiveTables(grouped), [grouped]);
   const filteredGrouped = useMemo(
-    () => filterGroupedBySearch(grouped, searchQuery),
-    [grouped, searchQuery],
+    () => filterGroupedBySearch(activeGrouped, searchQuery),
+    [activeGrouped, searchQuery],
   );
 
   const onRefresh = async () => {
@@ -86,23 +96,17 @@ const TablesScreen = ({ navigation }: Props) => {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFD700" />
-      }
-    >
+    <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.header}>Tables</Text>
-        <TouchableOpacity
-          style={styles.startTableBtn}
-          onPress={() => setStartTableModalOpen(true)}
-        >
-          <Text style={styles.startTableBtnText}>Start table</Text>
-        </TouchableOpacity>
       </View>
-
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFD700" />
+        }
+      >
       {(instances ?? []).length > 0 && (
         <View style={styles.instancesSection}>
           <Text style={styles.instancesSectionTitle}>Table instances</Text>
@@ -138,37 +142,34 @@ const TablesScreen = ({ navigation }: Props) => {
 
       {filteredGrouped.length === 0 ? (
         <Text style={styles.empty}>
-          {grouped.length === 0 ? 'No tables found' : 'No tables match your search'}
+          {activeGrouped.length === 0 ? 'No active tables' : 'No tables match your search'}
         </Text>
       ) : (
         filteredGrouped.map(({ area, tables }) => (
           <View key={area.id} style={styles.section}>
             <Text style={styles.areaName}>{area.name}</Text>
             <View style={styles.tableGrid}>
-              {tables.map(t => {
-                const status = (t.tableStatus ?? 'EMPTY') as TableStatusType;
-                if (status === 'EMPTY') {
-                  return (
-                    <TableCard
-                      key={t.id}
-                      table={t}
-                      onClick={onTablePress}
-                      status="available"
-                    />
-                  );
-                }
-                return (
-                  <ActiveTableCard
-                    key={t.id}
-                    table={t}
-                    onClick={onTablePress}
-                  />
-                );
-              })}
+              {tables.map(t => (
+                <ActiveTableCard
+                  key={t.id}
+                  table={t}
+                  onClick={onTablePress}
+                />
+              ))}
             </View>
           </View>
         ))
       )}
+      </ScrollView>
+
+      <View style={styles.fixedBottom}>
+        <TouchableOpacity
+          style={styles.startTableBtn}
+          onPress={() => setStartTableModalOpen(true)}
+        >
+          <Text style={styles.startTableBtnText}>Start table</Text>
+        </TouchableOpacity>
+      </View>
 
       <EmptyTablesModal
         isOpen={startTableModalOpen}
@@ -181,15 +182,30 @@ const TablesScreen = ({ navigation }: Props) => {
         visible={Boolean(instanceBillId)}
         onClose={() => setInstanceBillId(null)}
         billId={instanceBillId ?? ''}
-        onSettled={refetchInstances}
+        onSettled={() => {
+          refetchInstances();
+          refetch();
+        }}
       />
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F172A' },
-  content: { padding: 16, paddingBottom: 32 },
+  scroll: { flex: 1 },
+  content: { padding: 16, paddingBottom: 100 },
+  fixedBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    paddingBottom: 24,
+    backgroundColor: '#0F172A',
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+  },
   centered: {
     flex: 1,
     justifyContent: 'center',
@@ -205,11 +221,12 @@ const styles = StyleSheet.create({
   header: { fontSize: 24, fontWeight: '800', color: '#F8FAFC' },
   startTableBtn: {
     backgroundColor: '#FFD700',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
     borderRadius: 12,
+    alignItems: 'center',
   },
-  startTableBtnText: { color: '#0F172A', fontWeight: '700', fontSize: 14 },
+  startTableBtnText: { color: '#0F172A', fontWeight: '700', fontSize: 16 },
   instancesSection: { marginBottom: 16 },
   instancesSectionTitle: { fontSize: 14, fontWeight: '600', color: '#94A3B8', marginBottom: 4 },
   instancesSectionSubtitle: { fontSize: 12, color: '#64748B', marginBottom: 10 },

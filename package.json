@@ -6,6 +6,7 @@
     "tsc": "tsc --build",
     "android": "react-native run-android",
     "android:wait": "node scripts/wait-for-emulator.js && react-native run-android",
+    "android:release": "cd android && gradlew.bat assembleRelease",
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",

@@ -101,7 +101,7 @@ const POSScreen = ({ navigation }: Props) => {
   const [showAddMoreItems, setShowAddMoreItems] = useState(false);
   const [addMoreFromKotVisible, setAddMoreFromKotVisible] = useState(false);
 
-  const { grouped } = useAreasAndTables();
+  const { grouped, refetch: refetchTables } = useAreasAndTables();
   const allTablesForTransfer = React.useMemo(
     () => (currentTable ? grouped.flatMap(g => g.tables).filter(t => t.id !== currentTable.id) : []),
     [grouped, currentTable?.id],
@@ -280,7 +280,10 @@ const POSScreen = ({ navigation }: Props) => {
         currentTable={currentTable}
         grouped={grouped}
         onSwitchTable={() => navigation.navigate('Tables')}
-        onTransferOrMergeSuccess={refetchKots}
+        onTransferOrMergeSuccess={() => {
+          refetchKots();
+          refetchTables();
+        }}
       />
 
       <KotTransferModal
@@ -487,14 +490,6 @@ const POSScreen = ({ navigation }: Props) => {
                   }}
                 />
               ))
-            )}
-            {kots.length > 0 && (
-              <TouchableOpacity
-                style={styles.kotAddMoreItemBtn}
-                onPress={() => setAddMoreFromKotVisible(true)}
-              >
-                <Text style={styles.kotAddMoreItemBtnText}>Add more item</Text>
-              </TouchableOpacity>
             )}
           </ScrollView>
         </>
@@ -812,8 +807,6 @@ const styles = StyleSheet.create({
   kotToolbarBtnDisabled: { opacity: 0.5 },
   kotList: { flex: 1, padding: 16 },
   kotListWithAddMore: { paddingBottom: 24 },
-  kotAddMoreItemBtn: { backgroundColor: '#FFD700', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 12, alignItems: 'center', marginHorizontal: 16, marginTop: 8 },
-  kotAddMoreItemBtnText: { color: '#0F172A', fontWeight: '700', fontSize: 16 },
   addMoreKotModal: { flex: 1, backgroundColor: '#0F172A' },
   globalCartBar: {
     position: 'absolute',

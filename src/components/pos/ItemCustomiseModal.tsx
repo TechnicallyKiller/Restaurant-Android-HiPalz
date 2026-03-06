@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,20 @@ export default function ItemCustomiseModal({
 
   const variants = item?.itemVariants ?? [];
   const itemAddons = item?.itemAddons ?? [];
+
+  useEffect(() => {
+    if (visible && item && (item.itemVariants?.length ?? 0) > 0) {
+      const first = item.itemVariants[0];
+      setVariantId(first.id);
+      setVariantName(first.name ?? null);
+    } else if (!visible) {
+      setVariantId(null);
+      setVariantName(null);
+      setAddons([]);
+      setNotes('');
+      setQuantity(1);
+    }
+  }, [visible, item?.id]);
 
   const basePrice = useMemo(() => {
     if (!item) return 0;
