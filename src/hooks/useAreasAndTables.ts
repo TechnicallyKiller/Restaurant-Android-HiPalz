@@ -10,7 +10,12 @@ export interface AreaWithTables {
   tables: Table[];
 }
 
-export function useAreasAndTables() {
+export interface UseAreasAndTablesOptions {
+  refetchIntervalMs?: number;
+}
+
+export function useAreasAndTables(options: UseAreasAndTablesOptions = {}) {
+  const { refetchIntervalMs } = options;
   const outletId = useAuthStore(s => s.user?.outletId ?? '');
   const [areas, setAreas] = useState<Area[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
@@ -57,6 +62,12 @@ export function useAreasAndTables() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (refetchIntervalMs == null || refetchIntervalMs <= 0) return;
+    const id = setInterval(fetchData, refetchIntervalMs);
+    return () => clearInterval(id);
+  }, [fetchData, refetchIntervalMs]);
 
   return { grouped, areas, tables, isLoading, error, refetch: fetchData };
 }

@@ -66,6 +66,7 @@ const POSScreen = ({ navigation }: Props) => {
     addToCart,
     updateQuantity,
     updateNotes,
+    removeFromCart,
     findSimilarItems,
     activeTab,
     setActiveTab,
@@ -115,11 +116,10 @@ const POSScreen = ({ navigation }: Props) => {
   const cartTotal = cartItems.reduce((s, c) => s + c.totalPrice, 0);
   const cartCount = cartItems.reduce((s, c) => s + c.quantity, 0);
 
+  const kotCount = kots?.length ?? 0;
   const isEmptyTable = kots.length === 0 && cartItems.length === 0;
   const showCartTab = true;
-  const showBillTab = Boolean(
-    currentTable && (cartItems.length > 0 || hasBillForTable(currentTable.id) || kots.length > 0)
-  );
+  const showBillTab = kotCount > 0;
   const billEntry = currentTable ? getBillEntry(currentTable.id) : null;
   const billSplit = billEntry?.bill?.isSplit ?? false;
 
@@ -225,7 +225,7 @@ const POSScreen = ({ navigation }: Props) => {
     }
     const result = await place();
     if (result.success) {
-      refetchKots();
+      await refetchKots();
       setCartModalVisible(false);
       setActiveTab('kot');
     } else {
@@ -261,7 +261,7 @@ const POSScreen = ({ navigation }: Props) => {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'cart' as const, label: cartItems.length > 0 ? `Cart (${cartCount})` : 'Order' },
-    { key: 'kot' as const, label: 'KOTs' },
+    { key: 'kot' as const, label: "KOT's" },
     ...(showBillTab ? [{ key: 'bill' as const, label: 'Bill' }] : []),
   ];
 
@@ -282,8 +282,15 @@ const POSScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
         </View>
         <View style={styles.headerCenter}>
-
           <Text style={styles.tableName} numberOfLines={1}>{currentTable.name}</Text>
+          {(currentTable.isMergedParent || (currentTable.mergedTableNames?.length ?? 0) > 0) ? (
+            <View style={styles.mergedBadge}>
+              <Text style={styles.mergedBadgeIcon}>🔗</Text>
+              <Text style={styles.mergedBadgeText} numberOfLines={1}>
+                Merged: {currentTable.mergedTableDisplay ?? currentTable.mergedTableNames?.join(', ') ?? '—'}
+              </Text>
+            </View>
+          ) : null}
         </View>
         <TouchableOpacity
           style={styles.tableActionsBtn}
@@ -312,6 +319,7 @@ const POSScreen = ({ navigation }: Props) => {
         onTransferOrMergeSuccess={() => {
           refetchKots();
           refetchTables();
+          navigation.navigate('Tables');
         }}
       />
 
@@ -323,7 +331,11 @@ const POSScreen = ({ navigation }: Props) => {
         tables={allTablesForTransfer}
         staffId={staffId}
         outletId={outletId}
-        onSuccess={refetchKots}
+        onSuccess={() => {
+          refetchKots();
+          refetchTables();
+          navigation.navigate('Tables');
+        }}
       />
       <KotDeleteModal
         visible={kotDeleteVisible}
@@ -332,17 +344,24 @@ const POSScreen = ({ navigation }: Props) => {
         tableId={currentTable.id}
         outletId={outletId}
         staffId={staffId}
-        onSuccess={refetchKots}
+        onSuccess={async () => {
+          await refetchKots();
+        }}
       />
 
       <View style={styles.tabRow}>
         {tabs.map(({ key, label }) => (
           <TouchableOpacity
             key={key}
-            style={[styles.tab, activeTab === key && styles.tabActive]}
+            style={[styles.tab, activeTab === key && styles.tabActive, key === 'kot' && styles.tabWithBadge]}
             onPress={() => setActiveTab(key)}
           >
             <Text style={[styles.tabText, activeTab === key && styles.tabTextActive]}>{label}</Text>
+            {key === 'kot' && kotCount > 0 && (
+              <View style={styles.kotBadge}>
+                <Text style={styles.kotBadgeText}>{kotCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         ))}
       </View>
@@ -434,6 +453,7 @@ const POSScreen = ({ navigation }: Props) => {
                   onUpdateQuantity={(cartId, delta) => currentTable && updateQuantity(currentTable.id, cartId, delta)}
                   onUpdateNotes={(cartId, notes) => currentTable && updateNotes(currentTable.id, cartId, notes)}
                   onDecrementRequest={handleCartDecrementRequest}
+                  onRemove={(cartId) => currentTable && removeFromCart(currentTable.id, cartId)}
                 />
               </View>
             )}
@@ -610,6 +630,7 @@ const POSScreen = ({ navigation }: Props) => {
         onPlaceOrder={handlePlaceOrder}
         isPlacing={isPlacing}
         onDecrementRequest={handleCartDecrementRequest}
+        onRemove={(cartId) => currentTable && removeFromCart(currentTable.id, cartId)}
       />
 
       <KotReprintConfirmModal
@@ -770,6 +791,9 @@ const styles = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center' },
   headerCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', marginHorizontal: 8 },
+  mergedBadge: { flexDirection: 'row', alignItems: 'center', marginTop: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: colors.base200, borderRadius: 8, maxWidth: '100%' },
+  mergedBadgeIcon: { fontSize: 12, marginRight: 4 },
+  mergedBadgeText: { fontSize: 11, color: colors.mutedForeground, fontWeight: '600', flex: 1 },
   burgerBtn: {
     padding: 8,
     minWidth: 40,
@@ -788,9 +812,27 @@ const styles = StyleSheet.create({
   tableActionsBtnText: { color: colors.mutedForeground, fontWeight: '600', fontSize: 14 },
   tabRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
   tab: { ...borderBrutal, paddingVertical: 10, paddingHorizontal: 16, backgroundColor: colors.base200, borderRadius: 12 },
+  tabWithBadge: { position: 'relative' as const },
   tabActive: { backgroundColor: colors.tertiary },
   tabText: { color: colors.mutedForeground, fontWeight: '600' },
   tabTextActive: { color: colors.background, fontWeight: '700' },
+  kotBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#ff3b30',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  kotBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   categories: { maxHeight: 48, paddingVertical: 8, paddingLeft: 16 },
   catChip: { ...borderBrutal, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.base200, marginRight: 8, borderRadius: 20 },
   catChipActive: { backgroundColor: colors.tertiary },

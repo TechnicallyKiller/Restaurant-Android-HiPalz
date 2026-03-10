@@ -52,7 +52,7 @@ function filterGroupedBySearch(grouped: AreaWithTables[], query: string): AreaWi
 
 const TablesScreen = ({ navigation }: Props) => {
   const outletId = useAuthStore(s => s.user?.outletId ?? '');
-  const { grouped, isLoading, error, refetch } = useAreasAndTables();
+  const { grouped, isLoading, error, refetch } = useAreasAndTables({ refetchIntervalMs: 10000 });
   const { instances = [], refetch: refetchInstances } = useInstancedBills(outletId);
   const setCurrentTable = useTableStore(s => s.setCurrentTable);
   const [refreshing, setRefreshing] = React.useState(false);

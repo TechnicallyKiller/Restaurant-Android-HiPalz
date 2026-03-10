@@ -20,6 +20,7 @@ interface CartModalProps {
   onPlaceOrder: () => void;
   isPlacing?: boolean;
   onDecrementRequest?: (line: CartItem) => void;
+  onRemove?: (cartId: string) => void;
 }
 
 export default function CartModal({
@@ -31,6 +32,7 @@ export default function CartModal({
   onPlaceOrder,
   isPlacing = false,
   onDecrementRequest,
+  onRemove,
 }: CartModalProps) {
   const grandTotal = items.reduce((s, i) => s + i.totalPrice, 0);
 
@@ -52,6 +54,7 @@ export default function CartModal({
               onUpdateQuantity={onUpdateQuantity}
               onUpdateNotes={onUpdateNotes}
               onDecrementRequest={onDecrementRequest}
+              onRemove={onRemove}
             />
           </View>
           {items.length > 0 && (

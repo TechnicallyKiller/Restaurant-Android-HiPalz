@@ -21,7 +21,7 @@ interface KotDeleteModalProps {
   tableId: string;
   outletId: string;
   staffId: string;
-  onSuccess: () => void;
+  onSuccess?: () => void | Promise<void>;
 }
 
 export default function KotDeleteModal({
@@ -88,7 +88,7 @@ export default function KotDeleteModal({
           items,
         });
       }
-      onSuccess();
+      await Promise.resolve(onSuccess?.());
       handleClose();
     } catch (err) {
       Alert.alert('Delete failed', getErrorMessage(err));

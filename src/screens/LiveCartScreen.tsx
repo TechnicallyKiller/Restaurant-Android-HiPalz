@@ -27,7 +27,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'LiveCart'>;
 
 export default function LiveCartScreen({ navigation }: Props) {
   const currentTable = useTableStore(s => s.currentTable);
-  const getItemsForTable = useCartStore(s => s.getItemsForTable);
+  const tableId = currentTable?.id ?? null;
+  const cartItems = useCartStore(s => (tableId ? (s.cartsByTableId[tableId] ?? []) : []));
   const updateQuantity = useCartStore(s => s.updateQuantity);
   const updateNotes = useCartStore(s => s.updateNotes);
   const removeFromCart = useCartStore(s => s.removeFromCart);
@@ -43,8 +44,6 @@ export default function LiveCartScreen({ navigation }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isDark = useThemeStore(s => s.isDark);
   const c = getColors(isDark);
-
-  const cartItems = currentTable ? getItemsForTable(currentTable.id) : [];
   const cartTotal = cartItems.reduce((s, c) => s + c.totalPrice, 0);
   const cartCount = cartItems.reduce((s, c) => s + c.quantity, 0);
   const billEntry = currentTable ? getBillEntry(currentTable.id) : null;
@@ -111,13 +110,13 @@ export default function LiveCartScreen({ navigation }: Props) {
         <Text style={[styles.tableLabelText, { color: c.mutedForeground }]}>{currentTable.name}</Text>
       </View>
 
-      <View style={styles.listWrap}>
+      <View style={styles.listWrap} pointerEvents="box-none">
         <CartListSection
           items={cartItems}
-          onUpdateQuantity={(cartId, delta) => updateQuantity(currentTable.id, cartId, delta)}
-          onUpdateNotes={(cartId, notes) => updateNotes(currentTable.id, cartId, notes)}
+          onUpdateQuantity={(cartId, delta) => currentTable && updateQuantity(currentTable.id, cartId, delta)}
+          onUpdateNotes={(cartId, notes) => currentTable && updateNotes(currentTable.id, cartId, notes)}
           onDecrementRequest={handleCartDecrementRequest}
-          onRemove={(cartId) => removeFromCart(currentTable.id, cartId)}
+          onRemove={(cartId) => currentTable && removeFromCart(currentTable.id, cartId)}
         />
       </View>
 
