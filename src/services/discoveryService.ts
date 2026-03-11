@@ -39,8 +39,7 @@ export const discoveryService = {
     for (let i = 1; i <= 2; i++) {
       try {
         console.log(`[DiscoveryService] Broadcast Attempt ${i}/2...`);
-        const deviceIp = await NetworkInfo.getIPV4Address();
-        const result = await findServerConnection(deviceIp || undefined);
+        const result = await findServerConnection();
 
         if (result.success && result.ip) {
           const fullUrl = `http://${result.ip}`;

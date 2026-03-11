@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -25,6 +27,8 @@ const WelcomeScreen = () => {
   const [serverUrl, setServerUrl] = useState<string>(FIXED_SERVER_BASE_URL);
   const [isSearching, setIsSearching] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [manualIp, setManualIp] = useState('');
+  const [isManualTesting, setIsManualTesting] = useState(false);
 
   useEffect(() => {
     discoverServer();
@@ -54,6 +58,36 @@ const WelcomeScreen = () => {
     }
   };
 
+  const testManualIp = async () => {
+    if (!manualIp) {
+      Alert.alert('Error', 'Please enter an IP address');
+      return;
+    }
+    
+    // Clean up input (remove http:// if user typed it)
+    const cleanIp = manualIp.replace('http://', '').split(':')[0];
+    
+    setIsManualTesting(true);
+    try {
+      const { discoveryService } = require('../services/discoveryService');
+      const result = await pingIp(cleanIp, 3333, 3000);
+      
+      if (result.success) {
+        const fullUrl = `http://${cleanIp}:3333`;
+        await discoveryService.applyNewUrl(fullUrl);
+        setServerUrl(fullUrl);
+        setError(null);
+        navigation.replace('Login');
+      } else {
+        Alert.alert('Connection Failed', 'Server not reachable at that IP on port 3333');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'An unexpected error occurred');
+    } finally {
+      setIsManualTesting(false);
+    }
+  };
+
   const handleEnterTerminal = () => {
     navigation.replace('Login');
   };
@@ -77,12 +111,38 @@ const WelcomeScreen = () => {
           </View>
           <Text style={styles.statusText}>Server Not Found</Text>
           <Text style={styles.errorText}>{error}</Text>
+          
           <TouchableOpacity
-            style={[styles.button, btnStyle, { marginTop: 20 }]}
+            style={[styles.button, btnStyle, { marginTop: 10, backgroundColor: colors.secondary }]}
             onPress={discoverServer}
           >
-            <Text style={styles.buttonText}>Retry Scan</Text>
+            <Text style={styles.buttonText}>Retry Auto-Scan</Text>
           </TouchableOpacity>
+
+          <View style={styles.manualEntryContainer}>
+            <Text style={styles.manualLabel}>- OR ENTER IP MANUALLY -</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 192.168.1.5"
+              placeholderTextColor={colors.mutedForeground}
+              value={manualIp}
+              onChangeText={setManualIp}
+              keyboardType="numeric"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              style={[styles.button, btnStyle, { marginTop: 10 }]}
+              onPress={testManualIp}
+              disabled={isManualTesting}
+            >
+              {isManualTesting ? (
+                <ActivityIndicator color={colors.background} />
+              ) : (
+                <Text style={styles.buttonText}>Connect Manually</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       );
     }
@@ -203,6 +263,30 @@ const styles = StyleSheet.create({
   footerText: {
     color: colors.mutedForeground,
     fontSize: 12,
+  },
+  manualEntryContainer: {
+    width: '100%',
+    marginTop: 30,
+    paddingTop: 20,
+    borderTopWidth: 2,
+    borderTopColor: colors.brutalBorder,
+  },
+  manualLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.mutedForeground,
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  input: {
+    height: 50,
+    backgroundColor: colors.background,
+    borderWidth: 2,
+    borderColor: colors.foreground,
+    paddingHorizontal: 15,
+    fontSize: 16,
+    color: colors.foreground,
+    fontFamily: 'monospace',
   },
 });
 

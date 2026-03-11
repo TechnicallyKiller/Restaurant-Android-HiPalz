@@ -1,6 +1,9 @@
+import { NetworkInfo } from 'react-native-network-info';
+import Zeroconf from 'react-native-zeroconf';
+
 // connection.ts
 // Utility to find the Hipalz server on the local network for your Android App.
-// Features UDP Broadcast (fast) discovery.
+// Features UDP Broadcast (fast) discovery and TCP scan fallback.
 
 /**
  * Pings a specific IP to see if the server is running there.
@@ -17,7 +20,7 @@ export async function pingIp(
     const id = setTimeout(() => controller.abort(), timeoutMs);
 
     if (signal) {
-      signal.addEventListener('abort', () => controller.abort());
+      signal.addEventListener('abort', () => controller.abort(), { once: true });
     }
 
     const response = await fetch(url, {
@@ -33,6 +36,47 @@ export async function pingIp(
     }
   } catch (err) {}
   return { ip: `${ip}:${port}`, success: false };
+}
+
+/**
+ * Helper to compute broadcast address from device IP (Assumes /24 subnet)
+ */
+async function getSubnetBroadcast(): Promise<string | null> {
+  try {
+    const ip = await NetworkInfo.getIPV4Address();
+    if (!ip) return null;
+    const parts = ip.split('.');
+    if (parts.length === 4) {
+      return `${parts[0]}.${parts[1]}.${parts[2]}.255`;
+    }
+  } catch (e) {}
+  return null;
+}
+
+/**
+ * TCP Subnet Scan (Last Resort)
+ * Attempts to connect to http://{ip}:3333/ping for each IP in the /24 range.
+ */
+async function scanLocalSubnet(
+  baseIp: string, // e.g., "192.168.1."
+  port = 3333,
+  timeoutMs = 500,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  console.log(`[TCP-Scan] Scanning subnet ${baseIp}0/24 on port ${port}...`);
+  const promises = [];
+  for (let i = 1; i <= 254; i++) {
+    const ip = `${baseIp}${i}`;
+    promises.push(
+      pingIp(ip, port, timeoutMs, signal).then(result =>
+        result.success ? result.ip : null,
+      ),
+    );
+  }
+  const results = await Promise.all(promises);
+  const found = results.find(ip => ip !== null) || null;
+  if (found) console.log(`[TCP-Scan] Found server at ${found}`);
+  return found;
 }
 
 // `react-native-udp` is optional. If it's not installed, we fall back gracefully
@@ -53,27 +97,29 @@ try {
 export async function discoverServerByUDP(
   port = 3334,
   timeoutMs = 5000,
-  deviceIp?: string,
 ): Promise<{ ip: string; success: boolean }> {
   console.log('[UDP-Discovery] Initializing...');
   if (!UdpSocket) {
-    console.warn('[UDP-Discovery] react-native-udp not installed; skipping UDP discovery');
+    console.warn(
+      '[UDP-Discovery] react-native-udp not installed; skipping UDP discovery',
+    );
     return { ip: '', success: false };
   }
+
+  // Get the actual subnet broadcast
+  const subnetBroadcast = await getSubnetBroadcast();
+
   return new Promise(resolve => {
     let socket: any = null;
     let resolved = false;
-    let socketClosed = false; // Step 1: Flag
+    let socketClosed = false;
     let timer: any = null;
 
-    // Step 2: Production Safe Cleanup
     const cleanup = () => {
       if (socketClosed) return;
       socketClosed = true;
       try {
         if (socket) {
-          // Keep the error listener but make it a no-op to catch trailing events
-          // and prevent "Unhandled error" crash.
           socket.removeAllListeners('message');
           socket.removeAllListeners('listening');
           socket.close();
@@ -98,9 +144,8 @@ export async function discoverServerByUDP(
         finish({ ip: '', success: false });
       }, timeoutMs);
 
-      // Step 3: Fixed Error Handler
       socket.on('error', (err: any) => {
-        if (socketClosed || resolved) return; // SWALLOW errors if already done
+        if (socketClosed || resolved) return;
         console.warn('[UDP-Discovery] Socket Error:', err?.message || err);
         finish({ ip: '', success: false });
       });
@@ -122,7 +167,6 @@ export async function discoverServerByUDP(
         }
       });
 
-      // Step 4: Protected Bind & Broadcast
       socket.bind(0, (err: any) => {
         if (resolved || socketClosed || !socket) return;
 
@@ -137,41 +181,24 @@ export async function discoverServerByUDP(
 
           const message = 'DISCOVER_HIPALZ';
 
-          // EXTRA GUARD: Wrap everything to prevent "Socket is closed" logs
           try {
             if (typeof socket.setBroadcast === 'function') {
               socket.setBroadcast(true);
             }
           } catch (e) {}
 
-          // Optimization: Dynamic Broadcast Address + Common Fallbacks (Always try both)
           const targetSet = new Set(['255.255.255.255']);
-
-          if (
-            deviceIp &&
-            !deviceIp.includes(':') &&
-            deviceIp.split('.').length === 4
-          ) {
-            const parts = deviceIp.split('.');
-            const subnetBroadcast = `${parts[0]}.${parts[1]}.${parts[2]}.255`;
+          if (subnetBroadcast) {
             targetSet.add(subnetBroadcast);
-            console.log(
-              `[UDP-Discovery] Subnet Broadcast Target: ${subnetBroadcast}`,
-            );
+            console.log(`[UDP-Discovery] Using dynamic broadcast: ${subnetBroadcast}`);
           }
 
-          // ALWAYS try common subnets as fallback
-          targetSet.add('192.168.0.255');
-          targetSet.add('192.168.1.255');
-          targetSet.add('192.168.2.255');
-          targetSet.add('192.168.43.255');
-          targetSet.add('192.168.137.255');
-          targetSet.add('10.0.0.255');
+          // Fallbacks for common subnets
+          ['192.168.0.255', '192.168.1.255', '192.168.2.255',
+           '192.168.43.255', '192.168.137.255', '10.0.0.255'].forEach(addr => targetSet.add(addr));
 
           const targetAddrs = Array.from(targetSet);
-          console.log(
-            `[UDP-Discovery] Spraying ${targetAddrs.length} targets...`,
-          );
+          console.log(`[UDP-Discovery] Spraying ${targetAddrs.length} targets:`, targetAddrs);
 
           targetAddrs.forEach(broadcastAddr => {
             try {
@@ -199,7 +226,7 @@ export async function discoverServerByUDP(
   });
 }
 
-import Zeroconf from 'react-native-zeroconf';
+// zeroconf import removed here, moved to top
 
 /**
  * mDNS / Bonjour Discovery (Reliable Layer)
@@ -267,21 +294,13 @@ export async function discoverServerByZeroconf(
  * Runs UDP and mDNS in parallel for maximum speed and reliability.
  */
 export async function findServerConnection(
-  deviceIp?: string,
-  totalTimeoutMs = 10000,
+  totalTimeoutMs = 12000,
 ): Promise<{ ip: string; success: boolean }> {
-  console.log(
-    `[Discovery] Starting search (Current Device IP: ${
-      deviceIp || 'Unknown'
-    })...`,
-  );
+  console.log('[Discovery] Starting parallel search (UDP + mDNS)...');
 
   try {
-    // Run both discovery methods in parallel
-    // We use Promise.race but wrapped to only resolve if SUCCESSful,
-    // or wait for both if both fail.
     const results = await Promise.all([
-      discoverServerByUDP(3334, 8000, deviceIp),
+      discoverServerByUDP(3334, 8000),
       discoverServerByZeroconf(8000),
     ]);
 
@@ -292,6 +311,18 @@ export async function findServerConnection(
     }
   } catch (e) {
     console.warn('[Discovery] Error during parallel search:', e);
+  }
+
+  // After UDP & mDNS both fail
+  console.log('[Discovery] UDP & mDNS failed. Trying TCP subnet scan...');
+  const deviceIp = await NetworkInfo.getIPV4Address();
+  if (deviceIp) {
+    const parts = deviceIp.split('.');
+    const subnet = `${parts[0]}.${parts[1]}.${parts[2]}.`;
+    const foundIp = await scanLocalSubnet(subnet, 3333, 300);
+    if (foundIp) {
+      return { ip: foundIp, success: true };
+    }
   }
 
   console.log(`[Discovery] All discovery layers failed.`);
