@@ -23,12 +23,18 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import type { CartItem } from '../api/types';
 
+const EMPTY_CART: CartItem[] = [];
+
 type Props = NativeStackScreenProps<RootStackParamList, 'LiveCart'>;
 
 export default function LiveCartScreen({ navigation }: Props) {
   const currentTable = useTableStore(s => s.currentTable);
   const tableId = currentTable?.id ?? null;
-  const cartItems = useCartStore(s => (tableId ? (s.cartsByTableId[tableId] ?? []) : []));
+  const cartItems = useCartStore(s => {
+    if (!tableId) return EMPTY_CART;
+    const cart = s.cartsByTableId[tableId];
+    return cart ?? EMPTY_CART;
+  });
   const updateQuantity = useCartStore(s => s.updateQuantity);
   const updateNotes = useCartStore(s => s.updateNotes);
   const removeFromCart = useCartStore(s => s.removeFromCart);

@@ -4,6 +4,7 @@ import { getTables } from '../api/tablesApi';
 import { useAuthStore } from '../store/authStore';
 import type { Area, Table } from '../api/types';
 import { handleApiError, getErrorMessage } from '../utils/errorHandling';
+import { naturalCompare } from '../utils/naturalSort';
 
 export interface AreaWithTables {
   area: Area;
@@ -45,10 +46,11 @@ export function useAreasAndTables(options: UseAreasAndTablesOptions = {}) {
         list.push(t);
         byArea.set(t.areaId, list);
       }
-      const groupedRes: AreaWithTables[] = areasRes.map(area => ({
-        area,
-        tables: byArea.get(area.id) ?? [],
-      }));
+      const groupedRes: AreaWithTables[] = areasRes.map(area => {
+        const tables = byArea.get(area.id) ?? [];
+        tables.sort((a, b) => naturalCompare(a.name, b.name));
+        return { area, tables };
+      });
       setGrouped(groupedRes);
     } catch (err) {
       handleApiError(err);

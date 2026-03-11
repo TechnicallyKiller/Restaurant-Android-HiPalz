@@ -56,7 +56,7 @@ const POSScreen = ({ navigation }: Props) => {
   const currentTable = useTableStore(s => s.currentTable);
   const hasBillForTable = useBillStore(s => s.hasBillForTable);
   const getBillEntry = useBillStore(s => s.getBillEntry);
-  const getBillForTable = useBillStore(s => s.getBillForTable);
+  const billForTab = useBillStore(s => (currentTable ? s.getBillForTable(currentTable.id) : null));
   const setBillForTable = useBillStore(s => s.setBillForTable);
   const { fetchPreview, isLoading: previewLoading } = useBillPreview();
   const { refresh: refetchBill, isRefreshing: billRefreshing } = useBillByTable(currentTable?.id);
@@ -138,8 +138,6 @@ const POSScreen = ({ navigation }: Props) => {
       else fetchPreview();
     }
   }, [activeTab, currentTable?.id, hasBillForTable, refetchBill, fetchPreview]);
-
-  const billForTab = currentTable ? getBillForTable(currentTable.id) : null;
 
   const handleAddToCart = (config: CartConfig, quantity: number) => {
     if (!currentTable || !customiseItem) return;
