@@ -15,6 +15,7 @@ import type { BillingRow } from '../hooks/useBillingHistory';
 import BillingHistoryFilterPanel from '../components/billing/BillingHistoryFilters';
 import BillingHistoryRow from '../components/billing/BillingHistoryRow';
 import BillingHistoryDetailModal from '../components/billing/BillingHistoryDetailModal';
+import { Modal, TextInput } from 'react-native';
 import DateRangePicker from '../components/billing/DateRangePicker';
 import { printBill } from '../api/billApi';
 import { colors, neoCard, borderBrutal, neoButtonTertiary } from '../theme/neoBrutalism';
@@ -42,16 +43,34 @@ export default function BillingHistoryScreen() {
   } = useBillingHistory();
 
   const [directPrinting, setDirectPrinting] = useState<string | null>(null);
+  const [pwModalVisible, setPwModalVisible] = useState(false);
+  const [password, setPassword] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [billToPrint, setBillToPrint] = useState<string | null>(null);
 
-  const handleDirectPrint = async (billId: string) => {
-    setDirectPrinting(billId);
+  const handleDirectPrintRequest = (billId: string) => {
+    setBillToPrint(billId);
+    setPassword('');
+    setPwError('');
+    setPwModalVisible(true);
+  };
+
+  const handlePrintConfirm = async () => {
+    if (password !== 'admin2701') {
+      setPwError('Incorrect password');
+      return;
+    }
+    if (!billToPrint) return;
+    setPwModalVisible(false);
+    setDirectPrinting(billToPrint);
     try {
-      await printBill(billId);
+      await printBill(billToPrint);
       Alert.alert('Print', 'Print request sent.');
     } catch (err) {
       Alert.alert('Print failed', err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setDirectPrinting(null);
+      setBillToPrint(null);
     }
   };
 
@@ -61,7 +80,7 @@ export default function BillingHistoryScreen() {
         <BillingHistoryRow
           bill={item.bill}
           onView={() => item.bill.id && fetchDetail(item.bill.id)}
-          onPrint={() => item.bill.id && handleDirectPrint(item.bill.id)}
+          onPrint={() => item.bill.id && handleDirectPrintRequest(item.bill.id)}
         />
       );
     }
@@ -74,7 +93,7 @@ export default function BillingHistoryScreen() {
             key={variant.id ?? idx}
             bill={variant}
             onView={() => variant.id && fetchDetail(variant.id)}
-            onPrint={() => variant.id && handleDirectPrint(variant.id)}
+            onPrint={() => variant.id && handleDirectPrintRequest(variant.id)}
             isSplitPart
             isFirstSplitPart={idx === 0}
           />
@@ -183,6 +202,42 @@ export default function BillingHistoryScreen() {
         isLoading={detailLoading}
         onClose={closeDetail}
       />
+
+      {/* Direct Print Password Modal */}
+      <Modal visible={pwModalVisible} transparent animationType="fade">
+        <View style={styles.pwOverlay}>
+          <View style={styles.pwModal}>
+            <Text style={styles.pwTitle}>Enter Password to Print</Text>
+            <TextInput
+              style={styles.pwInput}
+              placeholder="Password"
+              placeholderTextColor={colors.mutedForeground}
+              secureTextEntry
+              value={password}
+              onChangeText={v => {
+                setPassword(v);
+                setPwError('');
+              }}
+              autoFocus
+            />
+            {pwError ? <Text style={styles.pwError}>{pwError}</Text> : null}
+            <View style={styles.pwActions}>
+              <Pressable
+                style={({ pressed }) => [styles.pwCancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+                onPress={() => setPwModalVisible(false)}
+              >
+                <Text style={styles.pwCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.pwConfirmBtn, { opacity: pressed ? 0.7 : 1 }]}
+                onPress={handlePrintConfirm}
+              >
+                <Text style={styles.pwConfirmText}>Confirm</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -309,5 +364,81 @@ const styles = StyleSheet.create({
     color: colors.mutedForeground,
     fontWeight: '600',
     fontSize: 13,
+  },
+
+  // Password modal (Direct Print)
+  pwOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pwModal: {
+    backgroundColor: colors.background,
+    borderWidth: 4,
+    borderColor: colors.brutalBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 8, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 10,
+    width: '80%',
+    padding: 24,
+  },
+  pwTitle: {
+    color: colors.foreground,
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  pwInput: {
+    backgroundColor: colors.base200,
+    borderWidth: 3,
+    borderColor: colors.brutalBorder,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: colors.foreground,
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  pwError: {
+    color: colors.error,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  pwActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  pwCancelBtn: {
+    flex: 1,
+    backgroundColor: colors.base300,
+    borderWidth: 3,
+    borderColor: colors.brutalBorder,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  pwCancelText: {
+    color: colors.foreground,
+    fontWeight: '700',
+  },
+  pwConfirmBtn: {
+    flex: 1,
+    backgroundColor: colors.tertiary,
+    borderWidth: 3,
+    borderColor: colors.brutalBorder,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  pwConfirmText: {
+    color: colors.background,
+    fontWeight: '700',
   },
 });

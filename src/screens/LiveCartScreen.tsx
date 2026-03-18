@@ -13,8 +13,7 @@ import { useTableStore } from '../store/tableStore';
 import { useCartStore } from '../store/cartStore';
 import { useBillStore } from '../store/billStore';
 import { useThemeStore } from '../store/themeStore';
-import { usePlaceKot, useKots, useAreasAndTables } from '../hooks';
-import { canPlaceKot } from '../utils/permissions';
+import { usePlaceKot, useKots, useAreasAndTables, useHasPermission } from '../hooks';
 import { getColors, borderBrutal, neoButtonTertiary } from '../theme/neoBrutalism';
 import CartListSection from '../components/pos/CartListSection';
 import DecrementLineModal from '../components/pos/DecrementLineModal';
@@ -56,7 +55,8 @@ export default function LiveCartScreen({ navigation }: Props) {
   const cartCount = cartItems.reduce((s, c) => s + c.quantity, 0);
   const billEntry = currentTable ? getBillEntry(currentTable.id) : null;
   const billSplit = billEntry?.bill?.isSplit ?? false;
-  const canPlace = currentTable && cartItems.length > 0 && !billSplit && canPlaceKot();
+  const canPlaceOrder = useHasPermission('PLACE_KOT');
+  const canPlace = currentTable && cartItems.length > 0 && !billSplit && canPlaceOrder;
 
   useEffect(() => {
     if (currentTable && cartItems.length === 0) {

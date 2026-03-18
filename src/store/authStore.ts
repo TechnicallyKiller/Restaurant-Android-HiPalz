@@ -1,7 +1,9 @@
 import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
 import type { Staff } from '../api/types';
 import { setAuthToken } from '../api/apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 const TOKEN_KEY = 'pos_token';
 const USER_KEY = 'pos_user';
@@ -20,52 +22,54 @@ interface AuthState {
   logout: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-  token: null,
-  user: null,
-  isLoading: false,
-  error: null,
+export const useAuthStore = create<AuthState>()(
+  subscribeWithSelector((set, get) => ({
+    token: null,
+    user: null,
+    isLoading: false,
+    error: null,
 
-  setToken: token => {
-    setAuthToken(token);
-    set({ token });
-  },
-  setUser: user => set({ user }),
-  setError: error => set({ error }),
-  setLoading: isLoading => set({ isLoading }),
+    setToken: token => {
+      setAuthToken(token);
+      set({ token });
+    },
+    setUser: user => set({ user }),
+    setError: error => set({ error }),
+    setLoading: isLoading => set({ isLoading }),
 
-  hydrate: async () => {
-    try {
-      const [token, userJson] = await Promise.all([
-        AsyncStorage.getItem(TOKEN_KEY),
-        AsyncStorage.getItem(USER_KEY),
+    hydrate: async () => {
+      try {
+        const [token, userJson] = await Promise.all([
+          AsyncStorage.getItem(TOKEN_KEY),
+          AsyncStorage.getItem(USER_KEY),
+        ]);
+        if (token) setAuthToken(token);
+        const user = userJson ? (JSON.parse(userJson) as Staff) : null;
+        set({ token, user });
+      } catch {
+        set({ token: null, user: null });
+      }
+    },
+
+    loginSuccess: async (token, user) => {
+      setAuthToken(token);
+      await Promise.all([
+        AsyncStorage.setItem(TOKEN_KEY, token),
+        AsyncStorage.setItem(USER_KEY, JSON.stringify(user)),
       ]);
-      if (token) setAuthToken(token);
-      const user = userJson ? (JSON.parse(userJson) as Staff) : null;
-      set({ token, user });
-    } catch {
-      set({ token: null, user: null });
-    }
-  },
+      set({ token, user, error: null });
+    },
 
-  loginSuccess: async (token, user) => {
-    setAuthToken(token);
-    await Promise.all([
-      AsyncStorage.setItem(TOKEN_KEY, token),
-      AsyncStorage.setItem(USER_KEY, JSON.stringify(user)),
-    ]);
-    set({ token, user, error: null });
-  },
-
-  logout: async () => {
-    setAuthToken(null);
-    await Promise.all([
-      AsyncStorage.removeItem(TOKEN_KEY),
-      AsyncStorage.removeItem(USER_KEY),
-    ]);
-    set({ token: null, user: null, error: null });
-  },
-}));
+    logout: async () => {
+      setAuthToken(null);
+      await Promise.all([
+        AsyncStorage.removeItem(TOKEN_KEY),
+        AsyncStorage.removeItem(USER_KEY),
+      ]);
+      set({ token: null, user: null, error: null });
+    },
+  })),
+);
 
 export const getStaffId = () => useAuthStore.getState().user?.id ?? '';
 export const getOutletId = () => useAuthStore.getState().user?.outletId ?? '';

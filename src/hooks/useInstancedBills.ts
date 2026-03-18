@@ -3,7 +3,12 @@ import { getInstancedBills } from '../api/billApi';
 import { handleApiError, getErrorMessage } from '../utils/errorHandling';
 import type { InstancedBillItem } from '../api/types';
 
-export function useInstancedBills(outletId: string) {
+export interface UseInstancedBillsOptions {
+  refetchIntervalMs?: number;
+}
+
+export function useInstancedBills(outletId: string, options: UseInstancedBillsOptions = {}) {
+  const { refetchIntervalMs } = options;
   const [instances, setInstances] = useState<InstancedBillItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +35,12 @@ export function useInstancedBills(outletId: string) {
   useEffect(() => {
     fetchInstances();
   }, [fetchInstances]);
+
+  useEffect(() => {
+    if (refetchIntervalMs == null || refetchIntervalMs <= 0) return;
+    const id = setInterval(fetchInstances, refetchIntervalMs);
+    return () => clearInterval(id);
+  }, [fetchInstances, refetchIntervalMs]);
 
   return { instances, isLoading, error, refetch: fetchInstances };
 }

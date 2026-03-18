@@ -19,6 +19,8 @@ import {
   useBillByTable,
   usePaymentModes,
   useKots,
+  useHasPermission,
+  useRunWithPermission,
 } from '../hooks';
 import { createTableInstance, printBill, clubSplits, getSplitsByBillId } from '../api';
 import { getErrorMessage } from '../utils/errorHandling';
@@ -67,6 +69,19 @@ const BillScreen = ({ navigation }: Props) => {
   const [variants, setVariants] = useState<BillPreviewData[] | null>(null);
   const [selectedSplitBillId, setSelectedSplitBillId] = useState<string | null>(null);
   const [warningVisible, setWarningVisible] = useState(false);
+
+  const canGenerate = useHasPermission('GENERATE_BILL');
+  const canSettle = useHasPermission('SETTLE_BILL');
+  const canSplit = useHasPermission('SPLIT_BILL');
+  const canDiscount = useHasPermission('ADD_DISCOUNT');
+  const canServiceCharge = useHasPermission('ADD_SERVICE_CHARGE');
+  const canExtras = useHasPermission('ADD_CONTAINER_CHARGE');
+
+  const {run: runSettle} = useRunWithPermission('SETTLE_BILL');
+  const {run: runDiscount} = useRunWithPermission('ADD_DISCOUNT');
+  const {run: runServiceCharge} = useRunWithPermission('ADD_SERVICE_CHARGE');
+  const {run: runExtras} = useRunWithPermission('ADD_CONTAINER_CHARGE');
+  const {run: runSplit} = useRunWithPermission('SPLIT_BILL');
 
   useEffect(() => {
     if (currentTable && !bill && kots.length > 0) fetchPreview();
@@ -172,13 +187,13 @@ const BillScreen = ({ navigation }: Props) => {
     if (allPaid === true) {
       setBillForTable(currentTable!.id, null);
       refetchTables();
-      navigation.navigate('MainTabs');
+      navigation.navigate('POS');
       return;
     }
     if (!bill?.isSplit) {
       setBillForTable(currentTable!.id, null);
       refetchTables();
-      navigation.navigate('MainTabs');
+      navigation.navigate('POS');
       return;
     }
     await refetchBill();
@@ -188,7 +203,7 @@ const BillScreen = ({ navigation }: Props) => {
       if (v.length > 0 && v.every(x => x.status === 'PAID')) {
         setBillForTable(currentTable!.id, null);
         refetchTables();
-        navigation.navigate('MainTabs');
+        navigation.navigate('POS');
       }
     }
     refetchTables();
@@ -286,74 +301,93 @@ const BillScreen = ({ navigation }: Props) => {
             )}
             {hasBill && (
               <View style={styles.actionRow}>
+                {canDiscount && (
+                  <Pressable
+                    style={({pressed}) => [
+                      styles.smallBtn,
+                      {opacity: pressed ? 0.7 : 1},
+                    ]}
+                    onPress={() => runDiscount(() => setDiscountVisible(true))}>
+                    <Text style={styles.smallBtnText}>Discount</Text>
+                  </Pressable>
+                )}
+                {canServiceCharge && (
+                  <Pressable
+                    style={({pressed}) => [
+                      styles.smallBtn,
+                      {opacity: pressed ? 0.7 : 1},
+                    ]}
+                    onPress={() =>
+                      runServiceCharge(() => setServiceChargeVisible(true))
+                    }>
+                    <Text style={styles.smallBtnText}>Service charge</Text>
+                  </Pressable>
+                )}
+                {canExtras && (
+                  <Pressable
+                    style={({pressed}) => [
+                      styles.smallBtn,
+                      {opacity: pressed ? 0.7 : 1},
+                    ]}
+                    onPress={() => runExtras(() => setExtrasVisible(true))}>
+                    <Text style={styles.smallBtnText}>Extras</Text>
+                  </Pressable>
+                )}
                 <Pressable
-                  style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
-                  onPress={() => setDiscountVisible(true)}
-                >
-                  <Text style={styles.smallBtnText}>Discount</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
-                  onPress={() => setServiceChargeVisible(true)}
-                >
-                  <Text style={styles.smallBtnText}>Service charge</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
-                  onPress={() => setExtrasVisible(true)}
-                >
-                  <Text style={styles.smallBtnText}>Extras</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
-                  onPress={() => setTipVisible(true)}
-                >
+                  style={({pressed}) => [
+                    styles.smallBtn,
+                    {opacity: pressed ? 0.7 : 1},
+                  ]}
+                  onPress={() => setTipVisible(true)}>
                   <Text style={styles.smallBtnText}>Add tip</Text>
                 </Pressable>
-                {!bill?.isSplit && (
+                {!bill?.isSplit && canSplit && (
                   <Pressable
-                    style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
-                    onPress={() => setSplitVisible(true)}
-                  >
+                    style={({pressed}) => [
+                      styles.smallBtn,
+                      {opacity: pressed ? 0.7 : 1},
+                    ]}
+                    onPress={() => runSplit(() => setSplitVisible(true))}>
                     <Text style={styles.smallBtnText}>Split bill</Text>
                   </Pressable>
                 )}
                 {bill?.isSplit && (
                   <Pressable
-                    style={({ pressed }) => [
+                    style={({pressed}) => [
                       styles.smallBtn,
                       merging && styles.btnDisabled,
-                      { opacity: pressed ? 0.7 : 1 },
+                      {opacity: pressed ? 0.7 : 1},
                     ]}
                     onPress={handleMergeBill}
-                    disabled={merging}
-                  >
-                    <Text style={styles.smallBtnText}>{merging ? '…' : 'Merge bill'}</Text>
+                    disabled={merging}>
+                    <Text style={styles.smallBtnText}>
+                      {merging ? '…' : 'Merge bill'}
+                    </Text>
                   </Pressable>
                 )}
                 <Pressable
-                  style={({ pressed }) => [
+                  style={({pressed}) => [
                     styles.smallBtn,
                     printing && styles.btnDisabled,
-                    { opacity: pressed ? 0.7 : 1 },
+                    {opacity: pressed ? 0.7 : 1},
                   ]}
                   onPress={handlePrint}
-                  disabled={printing}
-                >
-                  <Text style={styles.smallBtnText}>{printing ? '…' : 'Print'}</Text>
+                  disabled={printing}>
+                  <Text style={styles.smallBtnText}>
+                    {printing ? '…' : 'Print'}
+                  </Text>
                 </Pressable>
               </View>
             )}
             {!hasBill ? (
               <Pressable
-                style={({ pressed }) => [
+                style={({pressed}) => [
                   styles.primaryBtn,
-                  isGenerating && styles.btnDisabled,
-                  { opacity: pressed ? 0.7 : 1 },
+                  (isGenerating || !canGenerate) && styles.btnDisabled,
+                  {opacity: pressed ? 0.7 : 1},
                 ]}
                 onPress={handleGenerate}
-                disabled={isGenerating}
-              >
+                disabled={isGenerating || !canGenerate}>
                 {isGenerating ? (
                   <ActivityIndicator color="#0F172A" size="small" />
                 ) : (
@@ -377,15 +411,14 @@ const BillScreen = ({ navigation }: Props) => {
                     <Text style={styles.instanceBtnText}>Create instance</Text>
                   )}
                 </Pressable>
-                {displayBill?.status !== 'PAID' && (
+                {displayBill?.status !== 'PAID' && canSettle && (
                   <Pressable
-                    style={({ pressed }) => [
+                    style={({pressed}) => [
                       styles.primaryBtn,
                       styles.payBtn,
-                      { flex: 1, marginTop: 0, opacity: pressed ? 0.7 : 1 },
+                      {flex: 1, marginTop: 0, opacity: pressed ? 0.7 : 1},
                     ]}
-                    onPress={() => setSettleVisible(true)}
-                  >
+                    onPress={() => runSettle(() => setSettleVisible(true))}>
                     <Text style={styles.primaryBtnText}>Settle</Text>
                   </Pressable>
                 )}

@@ -19,6 +19,7 @@ import { colors, neoCard, neoButtonTertiary, textUppercase } from '../theme/neoB
 import { NetworkInfo } from 'react-native-network-info';
 import { findServerConnection, pingIp } from '../services/connection';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { discoveryService } from '../services/discoveryService';
 
 type WelcomeNav = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
 
@@ -39,7 +40,6 @@ const WelcomeScreen = () => {
     setIsSearching(true);
     setError(null);
     try {
-      const { discoveryService } = require('../services/discoveryService');
       const newUrl = await discoveryService.reDiscoverServer();
       console.log('New URL:', newUrl);
 
@@ -69,7 +69,6 @@ const WelcomeScreen = () => {
     
     setIsManualTesting(true);
     try {
-      const { discoveryService } = require('../services/discoveryService');
       const result = await pingIp(cleanIp, 3333, 3000);
       
       if (result.success) {

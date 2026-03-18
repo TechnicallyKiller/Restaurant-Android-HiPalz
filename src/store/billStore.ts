@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useAuthStore } from './authStore';
 import type { BillPreviewData, BillTableEntry } from '../api/types';
 
 interface BillState {
@@ -12,6 +13,7 @@ interface BillState {
     payload: { orderId?: string; splitVariants?: BillPreviewData[] },
   ) => void;
   setSelectedSplitBillId: (tableId: string, billId: string | null) => void;
+  clearAllBills: () => void;
 }
 
 export const useBillStore = create<BillState>((set, get) => ({
@@ -70,4 +72,16 @@ export const useBillStore = create<BillState>((set, get) => ({
       },
     });
   },
+
+  clearAllBills: () => set({ billsByTableId: {} }),
 }));
+
+// Reactive: Clear bills when user logs out
+useAuthStore.subscribe(
+  (state: any) => state.token,
+  (token: any) => {
+    if (!token) {
+      useBillStore.getState().clearAllBills();
+    }
+  },
+);

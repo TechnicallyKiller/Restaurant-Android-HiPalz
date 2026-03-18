@@ -1,4 +1,5 @@
 import { ApiError } from '../api/ApiError';
+import { useErrorStore } from '../store/errorStore';
 
 /**
  * Extract a user-facing error message from any thrown value.
@@ -52,11 +53,7 @@ export interface ErrorState {
  * Network errors → set offline state (no blocking modal)
  */
 export function handleApiError(error: unknown): void {
-  const { setError, setOffline } =
-    require('../store/errorStore').useErrorStore.getState() as {
-      setError: (p: Partial<ErrorState> & { isOpen: true }) => void;
-      setOffline: (v: boolean) => void;
-    };
+  const { setError, setOffline } = useErrorStore.getState();
 
   if (error instanceof ApiError) {
     const { statusCode, message } = error;

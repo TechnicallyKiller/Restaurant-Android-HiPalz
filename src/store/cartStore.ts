@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { CartItem, CartConfig, Item, CartTab } from '../api/types';
 import { buildCartId } from '../api/cartUtils';
+import { useAuthStore } from './authStore';
 
 function buildCartItem(item: Item, config: CartConfig, quantity: number): CartItem {
   const variant = config.variantId
@@ -64,6 +65,7 @@ interface CartState {
     newConfig: CartConfig,
   ) => void;
   clearCart: (tableId: string) => void;
+  clearAllCarts: () => void;
   findSimilarItems: (tableId: string, itemId: string) => CartItem[];
   getItemsForTable: (tableId: string) => CartItem[];
   setActiveTab: (tab: CartTab) => void;
@@ -171,6 +173,8 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ cartsByTableId: next });
   },
 
+  clearAllCarts: () => set({ cartsByTableId: {} }),
+
   findSimilarItems: (tableId, itemId) => {
     const cart = get().cartsByTableId[tableId] ?? [];
     return cart.filter(c => c.areaItemId === itemId);
@@ -180,3 +184,13 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   setActiveTab: activeTab => set({ activeTab }),
 }));
+
+// Reactive: Clear carts when user logs out
+useAuthStore.subscribe(
+  state => state.token,
+  token => {
+    if (!token) {
+      useCartStore.getState().clearAllCarts();
+    }
+  },
+);

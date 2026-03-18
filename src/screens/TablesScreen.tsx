@@ -53,8 +53,10 @@ function filterGroupedBySearch(grouped: AreaWithTables[], query: string): AreaWi
 const TablesScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const outletId = useAuthStore(s => s.user?.outletId ?? '');
-  const { grouped, isLoading, error, refetch } = useAreasAndTables({ refetchIntervalMs: 10000 });
-  const { instances = [], refetch: refetchInstances } = useInstancedBills(outletId);
+  const { grouped, isLoading, error, refetch } = useAreasAndTables({ refetchIntervalMs: 9000 });
+  const { instances = [], refetch: refetchInstances } = useInstancedBills(outletId, {
+    refetchIntervalMs: 10000,
+  });
   const setCurrentTable = useTableStore(s => s.setCurrentTable);
   const [refreshing, setRefreshing] = React.useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -139,16 +141,34 @@ const TablesScreen = () => {
           {sortedInstances.map((inst, index) => {
             const billId = inst.id ?? inst.billId ?? '';
             return (
-              <Pressable
-                key={billId || `instance-${index}`}
-                style={({ pressed }) => [styles.instanceCard, { opacity: pressed ? 0.7 : 1 }]}
-                onPress={() => billId && setInstanceBillId(billId)}
-              >
-                <Text style={styles.instanceCardTitle}>{inst.tableName ?? 'Table'}</Text>
-                <Text style={styles.instanceCardSub}>
-                  {inst.captainName ? `${inst.captainName} · ` : ''}₹{inst.payable?.toFixed(0) ?? '0'}
-                </Text>
-              </Pressable>
+                <Pressable
+                  key={billId || `instance-${index}`}
+                  style={({ pressed }) => [
+                    styles.instanceCard,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
+                  onPress={() => billId && setInstanceBillId(billId)}
+                >
+                  <View style={styles.instanceInfo}>
+                    <View style={styles.instanceIconWrap}>
+                      <Text style={styles.instanceIcon}>🕒</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.instanceCardTitle}>
+                        {inst.tableName ?? 'Table'}
+                      </Text>
+                      <Text style={styles.instanceCardSub}>
+                        {inst.captainName ? `${inst.captainName} · ` : ''}
+                        Settlement Pending
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.instanceAmountWrap}>
+                    <Text style={styles.instanceAmount}>
+                      ₹{inst.payable?.toFixed(0) ?? '0'}
+                    </Text>
+                  </View>
+                </Pressable>
             );
           })}
         </View>
@@ -165,19 +185,20 @@ const TablesScreen = () => {
 
       {filteredGrouped.length === 0 ? (
         <Text style={styles.empty}>
-          {activeGrouped.length === 0 ? 'No active tables' : 'No tables match your search'}
+          {activeGrouped.length === 0
+            ? 'No active tables'
+            : 'No tables match your search'}
         </Text>
       ) : (
         filteredGrouped.map(({ area, tables }) => (
           <View key={area.id} style={styles.section}>
-            <Text style={styles.areaName}>{area.name}</Text>
+            <View style={styles.areaHeader}>
+              <Text style={styles.areaName}>{area.name}</Text>
+              <View style={styles.areaLine} />
+            </View>
             <View style={styles.tableGrid}>
               {tables.map(t => (
-                <ActiveTableCard
-                  key={t.id}
-                  table={t}
-                  onClick={onTablePress}
-                />
+                <ActiveTableCard key={t.id} table={t} onClick={onTablePress} />
               ))}
             </View>
           </View>
@@ -213,9 +234,6 @@ const TablesScreen = () => {
     </SafeAreaView>
   );
 };
-
-const startBtnStyle = { ...neoButtonTertiary, paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center' as const };
-const instanceCardStyle = { ...neoCard, padding: 12, marginBottom: 8 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
@@ -261,20 +279,109 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.tertiary,
   },
-  startTableBtn: startBtnStyle,
-  startTableBtnText: { color: colors.background, fontWeight: '700', fontSize: 16, textTransform: 'uppercase' as const, letterSpacing: 1 },
+  startTableBtn: {
+    ...neoButtonTertiary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  startTableBtnText: {
+    color: colors.background,
+    fontWeight: '700',
+    fontSize: 16,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1,
+  },
   instancesSection: { marginBottom: 16 },
-  instancesSectionTitle: { fontSize: 14, fontWeight: '600', color: colors.mutedForeground, marginBottom: 4 },
-  instancesSectionSubtitle: { fontSize: 12, color: colors.mutedForeground, marginBottom: 10 },
-  instanceCard: instanceCardStyle,
-  instanceCardTitle: { fontSize: 14, fontWeight: '700', color: colors.foreground },
-  instanceCardSub: { fontSize: 12, color: colors.mutedForeground, marginTop: 4 },
-  search: { marginBottom: 12 },
+  instancesSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.mutedForeground,
+    marginBottom: 4,
+  },
+  instancesSectionSubtitle: {
+    fontSize: 12,
+    color: colors.mutedForeground,
+    marginBottom: 10,
+  },
+  search: { marginBottom: 16 },
   errorText: { color: colors.error, marginBottom: 12 },
-  section: { marginBottom: 24 },
-  areaName: { fontSize: 18, fontWeight: '600', color: colors.mutedForeground, marginBottom: 12 },
-  tableGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  section: { marginBottom: 32 },
+  areaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  areaName: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.foreground,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  areaLine: {
+    flex: 1,
+    height: 3,
+    backgroundColor: colors.brutalBorder,
+    borderRadius: 2,
+  },
+  tableGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    justifyContent: 'space-between',
+  },
   empty: { color: colors.mutedForeground, textAlign: 'center', marginTop: 24 },
+
+  instanceCard: {
+    ...neoCard,
+    padding: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderColor: colors.tertiary,
+  },
+  instanceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  instanceIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.base200,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.brutalBorder,
+  },
+  instanceIcon: { fontSize: 18 },
+  instanceCardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.foreground,
+  },
+  instanceCardSub: {
+    fontSize: 12,
+    color: colors.mutedForeground,
+    marginTop: 2,
+  },
+  instanceAmountWrap: {
+    backgroundColor: colors.tertiary,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.brutalBorder,
+  },
+  instanceAmount: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.background,
+  },
 });
 
 export default TablesScreen;

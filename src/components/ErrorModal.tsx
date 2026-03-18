@@ -12,6 +12,7 @@ import { useErrorStore } from '../store/errorStore';
 import { useAuthStore } from '../store/authStore';
 import { resetToLogin, resetToTables } from '../navigation/rootNavigation';
 import type { ErrorActionType } from '../utils/errorHandling';
+import { discoveryService } from '../services/discoveryService';
 
 export default function ErrorModal() {
   const [isReconnecting, setIsReconnecting] = React.useState(false);
@@ -22,7 +23,6 @@ export default function ErrorModal() {
     if (type === 'reconnect') {
       setIsReconnecting(true);
       try {
-        const { discoveryService } = require('../services/discoveryService');
         const found = await discoveryService.reDiscoverServer();
         if (found) {
           // Success! Clear error and let the app resume
@@ -31,8 +31,7 @@ export default function ErrorModal() {
           return;
         }
         // If not found, stay open so user can try again
-        require('../store/errorStore')
-          .useErrorStore.getState()
+        useErrorStore.getState()
           .setError({
             isOpen: true,
             title: 'Still Not Found',

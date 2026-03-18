@@ -23,6 +23,20 @@ export interface Staff {
   status?: boolean;
 }
 
+export type PermissionScopeType = 'VIEW' | 'FULL_ACCESS' | 'NONE';
+
+export interface StaffPermission {
+  id: string;
+  staffId: string;
+  permissionId: string;
+  outletId?: string;
+  status: boolean;
+  scope: PermissionScopeType;
+  isHasPassword: boolean;
+  permissionName: string;
+  permissionOdn: string;
+}
+
 export interface StaffLoginResponse {
   token: string;
   staff: Staff;
@@ -247,6 +261,10 @@ export interface BillPreviewItem {
   variantName?: string | null;
   addonGroups?: BillPreviewItemAddonGroup[];
   subtotal?: number;
+  name?: string;
+  itemDiscountsTotal?: number;
+  effectiveUnitPrice?: number;
+  taxPercent?: number;
 }
 
 export interface BillModifierAction {
@@ -291,6 +309,19 @@ export interface BillPreviewData {
   status?: string;
   paymentMethod?: string | null;
   tableName?: string;
+  createdAt: number;
+  userName?: string;
+  userPhone?: string;
+  captainName?: string;
+  captainPhone?: string;
+  paxCount?: number;
+  outletName?: string;
+  outletAddress?: string;
+  outletGstNumber?: string;
+  outletFssaiNumber?: string;
+  businessName?: string;
+  syncStatus?: string;
+  totalTaxableAmount?: number;
 }
 
 export interface BillTableEntry {
@@ -526,4 +557,14 @@ export interface BillingHistoryFilters {
   areaType?: string;
   minAmount?: number;
   maxAmount?: number;
+}
+
+// ----- Permissions -----
+export interface VerifyPasswordPayload {
+  staffPermissionId: string;
+  password: string | number;
+}
+
+export interface VerifyPasswordResponse {
+  valid: boolean;
 }

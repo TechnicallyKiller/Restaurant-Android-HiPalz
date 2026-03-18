@@ -11,3 +11,6 @@ export {
 } from './useBill';
 export { useInstancedBills } from './useInstancedBills';
 export { useBillingHistory } from './useBillingHistory';
+export { useHasPermission } from './useHasPermission';
+export { usePermission } from './usePermission';
+export { useRunWithPermission } from './useRunWithPermission';

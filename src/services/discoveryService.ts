@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NetworkInfo } from 'react-native-network-info';
 import { updateApiClientBaseUrl } from '../api/apiClient';
-import { setDynamicBaseUrl } from '../config/env';
-import { findServerConnection } from './connection';
+import { setDynamicBaseUrl, FIXED_SERVER_BASE_URL } from '../config/env';
+import { findServerConnection, pingIp } from './connection';
 
 let pendingScan: Promise<string | null> | null = null;
 
@@ -58,7 +58,6 @@ export const discoveryService = {
 
     // Attempt 3: Fallback to Origin IP (Fixed)
     try {
-      const { FIXED_SERVER_BASE_URL } = require('../config/env');
       if (FIXED_SERVER_BASE_URL) {
         console.log(
           '[DiscoveryService] Checking Origin IP fallback:',
@@ -66,7 +65,7 @@ export const discoveryService = {
         );
         const urlWithoutProtocol = FIXED_SERVER_BASE_URL.replace('http://', '');
         const [oIp, oPort] = urlWithoutProtocol.split(':');
-        const originCheck = await require('./connection').pingIp(
+        const originCheck = await pingIp(
           oIp,
           oPort ? parseInt(oPort) : 3333,
           3000,

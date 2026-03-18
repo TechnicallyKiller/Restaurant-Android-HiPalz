@@ -8,6 +8,7 @@ import { updateApiClientBaseUrl } from './src/api/apiClient';
 import { CONFIG } from './src/config/env';
 import RootNavigator from './src/navigation/RootNavigator';
 import ErrorModal from './src/components/ErrorModal';
+import PermissionPasswordModal from './src/components/permissions/PermissionPasswordModal';
 import { navigationRef } from './src/navigation/rootNavigation';
 
 const App = () => {
@@ -33,6 +34,7 @@ const App = () => {
       <NavigationContainer ref={navigationRef}>
         <RootNavigator />
         <ErrorModal />
+        <PermissionPasswordModal />
       </NavigationContainer>
     </SafeAreaProvider>
   );

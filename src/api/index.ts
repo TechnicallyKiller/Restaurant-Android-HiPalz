@@ -1,4 +1,5 @@
 export { default as apiClient, updateApiClientBaseUrl, setAuthToken, parseApiResponse } from './apiClient';
+export * from './permissionApi';
 export * from './types';
 export { staffLogin } from './authApi';
 export { getDineInAreas } from './areasApi';

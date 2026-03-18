@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { MainTabParamList } from './types';
 import TablesScreen from '../screens/TablesScreen';
 import BillingHistoryScreen from '../screens/BillingHistoryScreen';
 import { colors } from '../theme/neoBrutalism';
+import { useAuthStore } from '../store/authStore';
+import { usePermissionStore } from '../store/permissionStore';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -18,6 +20,16 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
 }
 
 export default function MainTabNavigator() {
+  const user = useAuthStore(s => s.user);
+  const permissions = usePermissionStore(s => s.permissions);
+  const fetchPermissions = usePermissionStore(s => s.fetchPermissions);
+
+  useEffect(() => {
+    if (user?.outletId && user?.id && permissions.length === 0) {
+      fetchPermissions(user.outletId, user.id);
+    }
+  }, [user?.outletId, user?.id, fetchPermissions, permissions.length]);
+
   return (
     <Tab.Navigator
       screenOptions={{

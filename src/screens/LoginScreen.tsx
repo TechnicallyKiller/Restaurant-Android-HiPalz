@@ -14,7 +14,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import LoginInput from '../components/auth/LoginInput';
 import HipalzLogo from '../components/auth/HipalzLogo';
-import { colors, neoCard, neoButtonTertiary, textUppercase } from '../theme/neoBrutalism';
+import {
+  colors,
+  neoCard,
+  neoButtonTertiary,
+  textUppercase,
+} from '../theme/neoBrutalism';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -50,7 +55,7 @@ const LoginScreen = ({ navigation }: Props) => {
 
           <LoginInput
             label="Phone"
-            value={phone || '6863914480'}
+            value={phone}
             onChangeText={setPhone}
             placeholder="Phone"
             keyboardType="phone-pad"
@@ -59,7 +64,7 @@ const LoginScreen = ({ navigation }: Props) => {
           />
           <LoginInput
             label="Password"
-            value={password || '4480'}
+            value={password}
             onChangeText={setPassword}
             placeholder="Password"
             secureTextEntry
@@ -88,7 +93,12 @@ const LoginScreen = ({ navigation }: Props) => {
 };
 
 const cardStyle = { ...neoCard, padding: 24 };
-const buttonStyle = { ...neoButtonTertiary, paddingVertical: 16, alignItems: 'center' as const, marginTop: 8 };
+const buttonStyle = {
+  ...neoButtonTertiary,
+  paddingVertical: 16,
+  alignItems: 'center' as const,
+  marginTop: 8,
+};
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },

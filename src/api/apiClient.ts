@@ -3,6 +3,8 @@ import { CONFIG } from '../config/env';
 import { API_SERVER_SECRET, TOKEN } from '../config/serverConfig';
 import { ApiError } from './ApiError';
 import type { ApiResponse } from './types';
+import { useErrorStore } from '../store/errorStore';
+import { discoveryService } from '../services/discoveryService';
 
 const apiClient = axios.create({
   baseURL: CONFIG.API_BASE_URL,
@@ -32,7 +34,7 @@ apiClient.interceptors.request.use(config => {
 apiClient.interceptors.response.use(
   res => {
     try {
-      require('../store/errorStore').useErrorStore.getState().setOffline(false);
+      useErrorStore.getState().setOffline(false);
     } catch {
       // ignore if store not ready
     }
@@ -64,9 +66,8 @@ apiClient.interceptors.response.use(
         '[API] Connection lost! Starting background re-discovery...',
       );
 
-      // Dynamic import to avoid circular dependency
-      return require('../services/discoveryService')
-        .discoveryService.reDiscoverServer()
+      // Discovery service used for re-discovery
+      return discoveryService.reDiscoverServer()
         .then((newUrl: string | null) => {
           if (newUrl) {
             console.log(

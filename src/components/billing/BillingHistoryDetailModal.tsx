@@ -10,7 +10,12 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { colors, neoModal, neoCard, borderBrutal } from '../../theme/neoBrutalism';
+import {
+  colors,
+  neoModal,
+  neoCard,
+  borderBrutal,
+} from '../../theme/neoBrutalism';
 import { printBill } from '../../api/billApi';
 import type { BillPreviewData } from '../../api/types';
 
@@ -21,7 +26,7 @@ interface Props {
   onClose: () => void;
 }
 
-const PRINT_PASSWORD = '2701';
+const PRINT_PASSWORD = 'admin2701';
 
 export default function BillingHistoryDetailModal({
   visible,
@@ -52,7 +57,10 @@ export default function BillingHistoryDetailModal({
       await printBill(bill.id);
       Alert.alert('Print', 'Print request sent successfully.');
     } catch (err) {
-      Alert.alert('Print failed', err instanceof Error ? err.message : 'Unknown error');
+      Alert.alert(
+        'Print failed',
+        err instanceof Error ? err.message : 'Unknown error',
+      );
     } finally {
       setPrinting(false);
     }
@@ -66,7 +74,10 @@ export default function BillingHistoryDetailModal({
             <Text style={styles.title}>Bill Details</Text>
             <Pressable
               onPress={onClose}
-              style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.7 : 1 }]}
+              style={({ pressed }) => [
+                styles.closeBtn,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
             >
               <Text style={styles.closeBtnText}>✕</Text>
             </Pressable>
@@ -82,62 +93,241 @@ export default function BillingHistoryDetailModal({
             </View>
           ) : (
             <>
-              <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+              <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.scrollContent}
+              >
+                {/* Outlet Header */}
+                <View style={styles.outletHeader}>
+                  <Text style={styles.businessName}>
+                    {bill.businessName || bill.outletName || 'Hipalz Cafe'}
+                  </Text>
+                  <Text style={styles.outletAddress}>
+                    {bill.outletAddress || '—'}
+                  </Text>
+                  <View style={styles.badgeRow}>
+                    {bill.outletGstNumber && (
+                      <View style={styles.miniBadge}>
+                        <Text style={styles.miniBadgeText}>
+                          GST: {bill.outletGstNumber}
+                        </Text>
+                      </View>
+                    )}
+                    {bill.outletFssaiNumber && (
+                      <View style={styles.miniBadge}>
+                        <Text style={styles.miniBadgeText}>
+                          FSSAI: {bill.outletFssaiNumber}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* Section 1: Staff & Table */}
+                <View style={styles.infoSection}>
+                  <View style={styles.infoCol}>
+                    <Text style={styles.infoRowLabel}>Table</Text>
+                    <Text style={styles.infoRowValue}>
+                      {bill.tableName || '—'}
+                    </Text>
+                  </View>
+                  <View style={styles.infoCol}>
+                    <Text style={styles.infoRowLabel}>Captain</Text>
+                    <Text style={styles.infoRowValue}>
+                      {bill.captainName || '—'}
+                    </Text>
+                    {bill.captainPhone && (
+                      <Text style={styles.infoSubValue}>
+                        {bill.captainPhone}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={styles.infoCol}>
+                    <Text style={styles.infoRowLabel}>User</Text>
+                    <Text style={styles.infoRowValue}>
+                      {bill.userName || '—'}
+                    </Text>
+                    {bill.userPhone && (
+                      <Text style={styles.infoSubValue}>{bill.userPhone}</Text>
+                    )}
+                  </View>
+                </View>
+
+                {/* Section 2: Bill Context */}
+                <View style={styles.infoSection}>
+                  <View style={styles.infoCol}>
+                    <Text style={styles.infoRowLabel}>Date</Text>
+                    <Text style={styles.infoRowValue}>
+                      {new Date(bill.createdAt).toLocaleDateString()}
+                    </Text>
+                    <Text style={styles.infoSubValue}>
+                      {new Date(bill.createdAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </View>
+                  <View style={styles.infoCol}>
+                    <Text style={styles.infoRowLabel}>Payment / Status</Text>
+                    <Text style={styles.infoRowValue}>
+                      {bill.paymentMethod || '—'}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.infoSubValue,
+                        {
+                          color:
+                            bill.status === 'PAID'
+                              ? colors.success
+                              : colors.warning,
+                        },
+                      ]}
+                    >
+                      {bill.status}
+                    </Text>
+                  </View>
+                  <View style={styles.infoCol}>
+                    <Text style={styles.infoRowLabel}>PAX</Text>
+                    <Text style={styles.infoRowValue}>
+                      {bill.paxCount || 1}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* IDs Section */}
+                <View style={styles.idsSection}>
+                  <Text style={styles.idText}>
+                    Invoice: #{bill.billInvoiceNumber} ({bill.invoiceNumber})
+                  </Text>
+                  <Text style={styles.idText}>Order ID: {bill.orderId}</Text>
+                </View>
+
                 {/* Line items */}
-                <View style={styles.section}>
+                <View style={[styles.section, { marginTop: 16 }]}>
                   <View style={styles.tableHeader}>
                     <Text style={[styles.thText, { flex: 2 }]}>Item</Text>
-                    <Text style={[styles.thText, { flex: 0.5, textAlign: 'center' }]}>Qty</Text>
-                    <Text style={[styles.thText, { flex: 1, textAlign: 'right' }]}>Rate</Text>
-                    <Text style={[styles.thText, { flex: 1, textAlign: 'right' }]}>Amount</Text>
+                    <Text
+                      style={[
+                        styles.thText,
+                        { flex: 0.5, textAlign: 'center' },
+                      ]}
+                    >
+                      Qty
+                    </Text>
+                    <Text
+                      style={[styles.thText, { flex: 1, textAlign: 'right' }]}
+                    >
+                      Amount
+                    </Text>
                   </View>
                   {(bill.items ?? []).map((item, i) => (
                     <View key={item.id ?? i} style={styles.itemRow}>
-                      <Text style={[styles.cellText, { flex: 2 }]} numberOfLines={2}>
-                        {item.itemName}
-                        {item.variantName ? ` (${item.variantName})` : ''}
-                      </Text>
-                      <Text style={[styles.cellText, { flex: 0.5, textAlign: 'center' }]}>
+                      <View style={{ flex: 2 }}>
+                        <Text style={styles.cellText}>
+                          {item.itemName || item.name}
+                          {item.variantName ? ` (${item.variantName})` : ''}
+                        </Text>
+                        {item.itemDiscountsTotal !== undefined &&
+                          item.itemDiscountsTotal > 0 && (
+                            <Text style={styles.itemDiscount}>
+                              Disc: -₹{item.itemDiscountsTotal}
+                            </Text>
+                          )}
+                      </View>
+                      <Text
+                        style={[
+                          styles.cellText,
+                          { flex: 0.5, textAlign: 'center' },
+                        ]}
+                      >
                         {item.quantity}
                       </Text>
-                      <Text style={[styles.cellText, { flex: 1, textAlign: 'right' }]}>
-                        ₹{item.itemPrice.toFixed(0)}
-                      </Text>
-                      <Text style={[styles.cellText, { flex: 1, textAlign: 'right' }]}>
-                        ₹{(item.itemPrice * item.quantity + (item.containerCharge ?? 0)).toFixed(0)}
+                      <Text
+                        style={[
+                          styles.cellText,
+                          { flex: 1, textAlign: 'right' },
+                        ]}
+                      >
+                        ₹
+                        {(
+                          item.itemPrice * item.quantity +
+                          (item.containerCharge ?? 0)
+                        ).toFixed(0)}
                       </Text>
                     </View>
                   ))}
                 </View>
 
-                {/* Summary */}
+                {/* Financial Summary */}
                 <View style={styles.summarySection}>
-                  <SummaryLine label="Subtotal" value={bill.subtotal} />
-                  {bill.discountTotal > 0 && (
-                    <SummaryLine label="Discount" value={-bill.discountTotal} negative />
+                  <SummaryLine
+                    label="Subtotal (Taxable)"
+                    value={bill.subtotal}
+                  />
+
+                  {(bill.totalDiscount || 0) > 0 && (
+                    <SummaryLine
+                      label="Total Discount"
+                      value={-(bill.totalDiscount || 0)}
+                      negative
+                    />
                   )}
+
+                  <View style={styles.divider} />
+
+                  {bill.categoryTaxMap &&
+                    Object.entries(bill.categoryTaxMap).map(
+                      ([taxName, amount]) => (
+                        <SummaryLine
+                          key={taxName}
+                          label={taxName}
+                          value={amount}
+                        />
+                      ),
+                    )}
+
+                  <SummaryLine label="Total Tax" value={bill.totalTax} />
+
+                  <View style={styles.divider} />
+
                   {bill.serviceCharge > 0 && (
-                    <SummaryLine label="Service Charge" value={bill.serviceCharge} />
+                    <SummaryLine
+                      label="Service Charge"
+                      value={bill.serviceCharge}
+                    />
                   )}
                   {bill.containerCharge > 0 && (
-                    <SummaryLine label="Container Charge" value={bill.containerCharge} />
+                    <SummaryLine
+                      label="Container Charge"
+                      value={bill.containerCharge}
+                    />
                   )}
                   {bill.deliveryCharge > 0 && (
-                    <SummaryLine label="Delivery Charge" value={bill.deliveryCharge} />
+                    <SummaryLine
+                      label="Delivery Charge"
+                      value={bill.deliveryCharge}
+                    />
                   )}
-                  <SummaryLine label="CGST" value={bill.cgstTotal} />
-                  <SummaryLine label="SGST" value={bill.sgstTotal} />
                   {bill.tipTotal > 0 && (
                     <SummaryLine label="Tip" value={bill.tipTotal} />
                   )}
                   {bill.roundOff !== 0 && (
                     <SummaryLine label="Round Off" value={bill.roundOff} />
                   )}
+
                   <View style={styles.totalLine}>
-                    <Text style={styles.totalLabel}>TOTAL</Text>
-                    <Text style={styles.totalValue}>₹{bill.payable.toFixed(0)}</Text>
+                    <Text style={styles.totalLabel}>Grand Total</Text>
+                    <Text style={styles.totalValue}>
+                      ₹{bill.payable.toFixed(0)}
+                    </Text>
                   </View>
                 </View>
+
+                {bill.syncStatus && (
+                  <Text style={styles.syncStatus}>
+                    Sync Status: {bill.syncStatus}
+                  </Text>
+                )}
               </ScrollView>
 
               <View style={styles.footer}>
@@ -173,19 +363,28 @@ export default function BillingHistoryDetailModal({
               placeholderTextColor={colors.mutedForeground}
               secureTextEntry
               value={password}
-              onChangeText={v => { setPassword(v); setPwError(''); }}
+              onChangeText={v => {
+                setPassword(v);
+                setPwError('');
+              }}
               autoFocus
             />
             {pwError ? <Text style={styles.pwError}>{pwError}</Text> : null}
             <View style={styles.pwActions}>
               <Pressable
-                style={({ pressed }) => [styles.pwCancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+                style={({ pressed }) => [
+                  styles.pwCancelBtn,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
                 onPress={() => setPwModalVisible(false)}
               >
                 <Text style={styles.pwCancelText}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={({ pressed }) => [styles.pwConfirmBtn, { opacity: pressed ? 0.7 : 1 }]}
+                style={({ pressed }) => [
+                  styles.pwConfirmBtn,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
                 onPress={handlePrintConfirm}
               >
                 <Text style={styles.pwConfirmText}>Confirm</Text>
@@ -198,7 +397,15 @@ export default function BillingHistoryDetailModal({
   );
 }
 
-function SummaryLine({ label, value, negative }: { label: string; value: number; negative?: boolean }) {
+function SummaryLine({
+  label,
+  value,
+  negative,
+}: {
+  label: string;
+  value: number;
+  negative?: boolean;
+}) {
   return (
     <View style={styles.summaryRow}>
       <Text style={styles.summaryLabel}>{label}</Text>
@@ -217,7 +424,7 @@ const styles = StyleSheet.create({
   },
   sheet: {
     ...neoModal,
-    maxHeight: '90%',
+    height: '100%',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderBottomLeftRadius: 0,
@@ -239,12 +446,121 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   closeBtn: { padding: 8 },
-  closeBtnText: { fontSize: 20, color: colors.mutedForeground, fontWeight: '800' },
+  closeBtnText: {
+    fontSize: 20,
+    color: colors.mutedForeground,
+    fontWeight: '800',
+  },
   loading: { padding: 40, alignItems: 'center' },
   emptyText: { color: colors.mutedForeground },
   scroll: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 24 },
+  infoSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  infoCol: {
+    flex: 1,
+  },
+  infoRowLabel: {
+    color: colors.mutedForeground,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  infoRowValue: {
+    color: colors.foreground,
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  taxTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.mutedForeground,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.brutalBorder,
+    opacity: 0.3,
+    marginVertical: 4,
+  },
   section: { marginBottom: 20 },
+  outletHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+    backgroundColor: colors.base200,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.brutalBorder,
+  },
+  businessName: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.foreground,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  outletAddress: {
+    fontSize: 11,
+    color: colors.mutedForeground,
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 15,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  miniBadge: {
+    backgroundColor: colors.base300,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  miniBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: colors.mutedForeground,
+  },
+  infoSubValue: {
+    fontSize: 10,
+    color: colors.mutedForeground,
+    fontWeight: '600',
+  },
+  idsSection: {
+    backgroundColor: colors.base100,
+    padding: 10,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.tertiary,
+    marginBottom: 8,
+  },
+  idText: {
+    fontSize: 10,
+    color: colors.mutedForeground,
+    fontFamily: 'space-mono',
+  },
+  itemDiscount: {
+    fontSize: 10,
+    color: colors.error,
+    fontWeight: '600',
+  },
+  syncStatus: {
+    fontSize: 9,
+    color: colors.mutedForeground,
+    textAlign: 'center',
+    marginTop: 20,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
   tableHeader: {
     flexDirection: 'row',
     paddingBottom: 8,

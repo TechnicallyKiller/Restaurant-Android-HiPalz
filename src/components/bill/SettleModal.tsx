@@ -9,11 +9,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import { payBill, settleSplit } from '../../api';
 import { getErrorMessage } from '../../utils/errorHandling';
-import type { BillPayModeBackend } from '../../api/types';
-import type { PaymentModeItem } from '../../api/types';
+import type { BillPayModeBackend, PaymentModeItem } from '../../api/types';
+import { colors, borderBrutal, shadowBrutal } from '../../theme/neoBrutalism';
 
 type Step = 'select' | 'split' | 'confirm';
 
@@ -156,23 +157,31 @@ export default function SettleModal({
     setSplitRows(prev => prev.filter((_, i) => i !== index));
   };
 
-  if (!visible) return null;
-
   return (
-    <Modal visible animationType="slide" transparent>
-      <View style={styles.overlay}>
-        <View style={styles.sheet}>
-          {step === 'select' && (
-            <>
-              <Text style={styles.title}>Settle — ₹{payable.toFixed(2)}</Text>
+    <Modal visible={visible} animationType="slide" transparent={false}>
+      <SafeAreaView style={styles.sheet}>
+        <View style={styles.headerRow}>
+          <Text style={styles.itemName}>Settle Bill</Text>
+        </View>
+
+        <ScrollView 
+          style={styles.scrollContent} 
+          contentContainerStyle={styles.scrollContentContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {visible && step === 'select' && (
+            <View style={styles.section}>
+              <Text style={styles.payableDisplay}>₹{payable.toFixed(2)}</Text>
+              
               <Pressable
                 style={({ pressed }) => [styles.splitPaymentBtn, { opacity: pressed ? 0.7 : 1 }]}
                 onPress={() => setStep('split')}
               >
-                <Text style={styles.splitPaymentBtnText}>Split payment</Text>
+                <Text style={styles.splitPaymentBtnText}>Split Payment</Text>
               </Pressable>
-              <Text style={styles.orLabel}>Or select a single mode</Text>
-              <ScrollView style={styles.modesList}>
+
+              <Text style={styles.label}>Select Payment Mode</Text>
+              <View style={styles.modesContainer}>
                 {selectableModes.map(m => (
                   <Pressable
                     key={m.id}
@@ -183,187 +192,455 @@ export default function SettleModal({
                     ]}
                     onPress={() => setSelectedMode(m.name as BillPayModeBackend)}
                   >
-                    <Text style={styles.modeBtnText}>{m.name}</Text>
+                    <Text style={[styles.modeBtnText, selectedMode === m.name && styles.modeBtnTextActive]}>
+                      {m.name}
+                    </Text>
+                    {selectedMode === m.name && <View style={styles.checkIcon} />}
                   </Pressable>
                 ))}
-              </ScrollView>
-              <View style={styles.actions}>
-                <Pressable
-                  style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
-                  onPress={onClose}
-                >
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.confirmBtn,
-                    (!selectedMode || paying) && styles.btnDisabled,
-                    { opacity: pressed ? 0.7 : 1 },
-                  ]}
-                  onPress={() => selectedMode && setStep('confirm')}
-                  disabled={!selectedMode || paying}
-                >
-                  <Text style={styles.confirmBtnText}>Next</Text>
-                </Pressable>
               </View>
-            </>
+            </View>
           )}
 
-          {step === 'confirm' && selectedMode && (
-            <>
-              <Text style={styles.title}>Confirm pay</Text>
-              <Text style={styles.confirmText}>
-                Pay ₹{payable.toFixed(2)} with {selectedMode}?
-              </Text>
-              <View style={styles.actions}>
-                <Pressable
-                  style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
-                  onPress={() => setStep('select')}
-                >
-                  <Text style={styles.cancelBtnText}>Back</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.confirmBtn,
-                    paying && styles.btnDisabled,
-                    { opacity: pressed ? 0.7 : 1 },
-                  ]}
-                  onPress={handleSinglePay}
-                  disabled={paying}
-                >
-                  {paying ? (
-                    <ActivityIndicator color="#0F172A" size="small" />
-                  ) : (
-                    <Text style={styles.confirmBtnText}>Confirm pay</Text>
-                  )}
-                </Pressable>
+          {visible && step === 'confirm' && selectedMode && (
+            <View style={styles.section}>
+              <Text style={styles.label}>Confirm Payment</Text>
+              <View style={styles.confirmCard}>
+                <Text style={styles.confirmAmount}>₹{payable.toFixed(2)}</Text>
+                <Text style={styles.confirmDetail}>Will be paid via {selectedMode}</Text>
               </View>
-            </>
+            </View>
           )}
 
-          {step === 'split' && (
-            <>
-              <Text style={styles.title}>Split payment — ₹{payable.toFixed(2)}</Text>
-              <Text style={styles.hint}>Allocate amounts per mode. Total must equal payable.</Text>
-              {splitError ? <Text style={styles.errorText}>{splitError}</Text> : null}
-              <ScrollView style={styles.splitList}>
+          {visible && step === 'split' && (
+            <View style={styles.section}>
+              <View style={styles.splitHeader}>
+                <Text style={styles.label}>Split Allocation</Text>
+                <Text style={styles.payableSub}>Payable: ₹{payable.toFixed(2)}</Text>
+              </View>
+              
+              {splitError ? <View style={styles.errorBox}><Text style={styles.errorText}>{splitError}</Text></View> : null}
+              
+              <View style={styles.splitList}>
                 {splitRows.map((row, i) => (
-                  <View key={i} style={styles.splitRow}>
-                    <ScrollView horizontal style={styles.modePicker} showsHorizontalScrollIndicator={false}>
-                      {selectableModes.map(m => (
+                  <View key={i} style={styles.splitRowCard}>
+                    <View style={styles.splitRowHeader}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.modePicker}>
+                        {selectableModes.map(m => (
+                          <Pressable
+                            key={m.id}
+                            style={({ pressed }) => [
+                              styles.modeChip,
+                              row.mode === m.name && styles.modeChipActive,
+                              { opacity: pressed ? 0.7 : 1 },
+                            ]}
+                            onPress={() => updateSplitRow(i, { mode: m.name })}
+                          >
+                            <Text style={[styles.modeChipText, row.mode === m.name && styles.modeChipTextActive]}>
+                              {m.name}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                      {splitRows.length > 1 && (
                         <Pressable
-                          key={m.id}
-                          style={({ pressed }) => [
-                            styles.modeChip,
-                            row.mode === m.name && styles.modeChipActive,
-                            { opacity: pressed ? 0.7 : 1 },
-                          ]}
-                          onPress={() => updateSplitRow(i, { mode: m.name })}
+                          style={styles.removeRowBtn}
+                          onPress={() => removeSplitRow(i)}
+                          hitSlop={10}
                         >
-                          <Text style={styles.modeChipText}>{m.name}</Text>
+                          <Text style={styles.removeRowText}>✕</Text>
                         </Pressable>
-                      ))}
-                    </ScrollView>
-                    <TextInput
-                      style={styles.amountInput}
-                      value={row.amount > 0 ? String(row.amount) : ''}
-                      onChangeText={t => {
-                        const v = parseFloat(t.replace(/,/g, '.')) || 0;
-                        updateSplitRow(i, { amount: Math.max(0, v) });
-                      }}
-                      keyboardType="decimal-pad"
-                      placeholder="0"
-                      placeholderTextColor="#64748B"
-                    />
-                    {splitRows.length > 1 && (
-                      <Pressable
-                        style={({ pressed }) => [styles.removeRowBtn, { opacity: pressed ? 0.7 : 1 }]}
-                        onPress={() => removeSplitRow(i)}
-                      >
-                        <Text style={styles.removeRowText}>−</Text>
-                      </Pressable>
-                    )}
+                      )}
+                    </View>
+                    <View style={styles.amountInputRow}>
+                      <Text style={styles.currencyPrefix}>₹</Text>
+                      <TextInput
+                        style={styles.amountInput}
+                        value={row.amount > 0 ? String(row.amount) : ''}
+                        onChangeText={t => {
+                          const v = parseFloat(t.replace(/,/g, '.')) || 0;
+                          updateSplitRow(i, { amount: Math.max(0, v) });
+                        }}
+                        keyboardType="decimal-pad"
+                        placeholder="0.00"
+                        placeholderTextColor="#64748B"
+                      />
+                    </View>
                   </View>
                 ))}
-              </ScrollView>
+              </View>
+
               <Pressable
                 style={({ pressed }) => [styles.addRowBtn, { opacity: pressed ? 0.7 : 1 }]}
                 onPress={addSplitRow}
               >
-                <Text style={styles.addRowText}>+ Add allocation</Text>
+                <Text style={styles.addRowText}>+ Add Mode</Text>
               </Pressable>
-              <Text style={[styles.totalLine, !splitTotalValid && styles.totalLineError]}>
-                Total: ₹{splitTotal.toFixed(2)} {!splitTotalValid && `(must be ₹${payable.toFixed(2)})`}
-              </Text>
-              <View style={styles.actions}>
-                <Pressable
-                  style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
-                  onPress={() => setStep('select')}
-                >
-                  <Text style={styles.cancelBtnText}>Back</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.confirmBtn,
-                    (!splitTotalValid || splitPayload.length === 0 || paying) && styles.btnDisabled,
-                    { opacity: pressed ? 0.7 : 1 },
-                  ]}
-                  onPress={handleSplitPay}
-                  disabled={!splitTotalValid || splitPayload.length === 0 || paying}
-                >
-                  {paying ? (
-                    <Text style={styles.confirmBtnText}>Settling…</Text>
-                  ) : (
-                    <Text style={styles.confirmBtnText}>Confirm split</Text>
-                  )}
-                </Pressable>
+
+              <View style={[styles.totalCard, !splitTotalValid && styles.totalCardError]}>
+                <Text style={styles.totalCardLabel}>Total Allocated</Text>
+                <Text style={[styles.totalCardValue, !splitTotalValid && styles.totalCardValueError]}>
+                  ₹{splitTotal.toFixed(2)}
+                </Text>
               </View>
-            </>
+            </View>
+          )}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          {step === 'select' && (
+            <View style={styles.footerRow}>
+              <Pressable style={styles.cancelBtn} onPress={onClose}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.confirmBtn,
+                  (!selectedMode || paying) && styles.btnDisabled,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
+                onPress={() => selectedMode && setStep('confirm')}
+                disabled={!selectedMode || paying}
+              >
+                <Text style={styles.confirmBtnText}>Next</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {step === 'confirm' && (
+            <View style={styles.footerRow}>
+              <Pressable style={styles.cancelBtn} onPress={() => setStep('select')}>
+                <Text style={styles.cancelBtnText}>Back</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.confirmBtn,
+                  paying && styles.btnDisabled,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
+                onPress={handleSinglePay}
+                disabled={paying}
+              >
+                {paying ? (
+                  <ActivityIndicator color="#000" size="small" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>Confirm Settle</Text>
+                )}
+              </Pressable>
+            </View>
+          )}
+
+          {step === 'split' && (
+            <View style={styles.footerRow}>
+              <Pressable style={styles.cancelBtn} onPress={() => setStep('select')}>
+                <Text style={styles.cancelBtnText}>Back</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.confirmBtn,
+                  (!splitTotalValid || splitPayload.length === 0 || paying) && styles.btnDisabled,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
+                onPress={handleSplitPay}
+                disabled={!splitTotalValid || splitPayload.length === 0 || paying}
+              >
+                {paying ? (
+                  <ActivityIndicator color="#000" size="small" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>Confirm Split</Text>
+                )}
+              </Pressable>
+            </View>
           )}
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#1E293B',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    height: '92%',
-    maxHeight: '92%',
+    backgroundColor: '#0F172A',
+    flex: 1,
   },
-  title: { fontSize: 20, fontWeight: '800', color: '#F8FAFC', marginBottom: 16 },
-  splitPaymentBtn: { backgroundColor: '#334155', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginBottom: 12 },
-  splitPaymentBtnText: { color: '#FFD700', fontWeight: '700' },
-  orLabel: { fontSize: 12, color: '#94A3B8', marginBottom: 8 },
-  modesList: { maxHeight: 180, marginBottom: 16 },
-  modeBtn: { backgroundColor: '#334155', padding: 16, borderRadius: 12, marginBottom: 8 },
-  modeBtnActive: { backgroundColor: '#FFD700' },
-  modeBtnText: { color: '#F8FAFC', fontWeight: '600' },
-  confirmText: { color: '#94A3B8', marginBottom: 20 },
-  hint: { fontSize: 12, color: '#94A3B8', marginBottom: 12 },
-  errorText: { fontSize: 12, color: '#F87171', marginBottom: 8 },
-  splitList: { maxHeight: 220, marginBottom: 8 },
-  splitRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  modePicker: { maxWidth: 160, marginRight: 8 },
-  modeChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#334155', marginRight: 6 },
-  modeChipActive: { backgroundColor: '#FFD700' },
-  modeChipText: { color: '#F8FAFC', fontSize: 12, fontWeight: '600' },
-  amountInput: { width: 90, backgroundColor: '#334155', borderRadius: 8, padding: 10, fontSize: 14, color: '#F8FAFC' },
-  removeRowBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#475569', justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
-  removeRowText: { color: '#FFF', fontWeight: '700', fontSize: 18 },
-  addRowBtn: { paddingVertical: 10, marginBottom: 8 },
-  addRowText: { color: '#FFD700', fontSize: 14, fontWeight: '600' },
-  totalLine: { fontSize: 14, color: '#94A3B8', marginBottom: 16 },
-  totalLineError: { color: '#F87171' },
-  actions: { flexDirection: 'row', gap: 12 },
-  cancelBtn: { flex: 1, backgroundColor: '#334155', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  cancelBtnText: { color: '#F8FAFC', fontWeight: '600' },
-  confirmBtn: { flex: 1, backgroundColor: '#FFD700', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  confirmBtnText: { color: '#0F172A', fontWeight: '700' },
-  btnDisabled: { opacity: 0.6 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  itemName: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#FFF',
+    flex: 1,
+  },
+  scrollContent: {
+    flex: 1,
+  },
+  scrollContentContainer: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  payableDisplay: {
+    fontSize: 40,
+    fontWeight: '900',
+    color: colors.tertiary,
+    textAlign: 'center',
+    marginVertical: 30,
+  },
+  splitPaymentBtn: {
+    backgroundColor: '#1E293B',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 30,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  splitPaymentBtnText: {
+    color: colors.tertiary,
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  label: {
+    fontSize: 13,
+    color: '#94A3B8',
+    marginBottom: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  modesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  modeBtn: {
+    width: '47%',
+    backgroundColor: '#1E293B',
+    padding: 18,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#334155',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modeBtnActive: {
+    backgroundColor: '#2A3A4A',
+    borderColor: '#475569',
+    borderWidth: 2,
+  },
+  modeBtnText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  modeBtnTextActive: {
+    color: colors.tertiary,
+  },
+  checkIcon: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.tertiary,
+  },
+  confirmCard: {
+    backgroundColor: '#1E293B',
+    padding: 24,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+    ...shadowBrutal,
+  },
+  confirmAmount: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: colors.tertiary,
+    marginBottom: 8,
+  },
+  confirmDetail: {
+    fontSize: 16,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  splitHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  payableSub: {
+    fontSize: 14,
+    color: colors.tertiary,
+    fontWeight: '800',
+  },
+  errorBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  errorText: {
+    color: '#F87171',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  splitList: {
+    marginBottom: 10,
+  },
+  splitRowCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  splitRowHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  modePicker: {
+    flex: 1,
+  },
+  modeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#334155',
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  modeChipActive: {
+    backgroundColor: colors.tertiary,
+  },
+  modeChipText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  modeChipTextActive: {
+    color: '#000',
+  },
+  removeRowBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#475569',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeRowText: {
+    color: '#FFF',
+    fontWeight: '900',
+  },
+  amountInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+  },
+  currencyPrefix: {
+    color: '#94A3B8',
+    fontSize: 18,
+    fontWeight: '800',
+    marginRight: 4,
+  },
+  amountInput: {
+    flex: 1,
+    height: 54,
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  addRowBtn: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  addRowText: {
+    color: colors.tertiary,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  totalCard: {
+    backgroundColor: '#1E293B',
+    padding: 20,
+    borderRadius: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  totalCardError: {
+    borderColor: '#F87171',
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+  },
+  totalCardLabel: {
+    color: '#94A3B8',
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    fontSize: 12,
+  },
+  totalCardValue: {
+    color: '#FFF',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  totalCardValueError: {
+    color: '#F87171',
+  },
+  footer: {
+    padding: 20,
+    backgroundColor: '#0F172A',
+    borderTopWidth: 1,
+    borderTopColor: '#1E293B',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 18,
+    backgroundColor: '#1E293B',
+    borderRadius: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  cancelBtnText: {
+    color: '#94A3B8',
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  confirmBtn: {
+    flex: 2,
+    paddingVertical: 18,
+    backgroundColor: colors.tertiary,
+    borderRadius: 14,
+    alignItems: 'center',
+    ...shadowBrutal,
+  },
+  confirmBtnText: {
+    color: '#000',
+    fontWeight: '900',
+    fontSize: 16,
+    textTransform: 'uppercase',
+  },
+  btnDisabled: {
+    opacity: 0.5,
+  },
 });

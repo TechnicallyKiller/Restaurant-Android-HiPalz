@@ -5,6 +5,17 @@ import Zeroconf from 'react-native-zeroconf';
 // Utility to find the Hipalz server on the local network for your Android App.
 // Features UDP Broadcast (fast) discovery and TCP scan fallback.
 
+// `react-native-udp` is optional. If it's not installed, we fall back gracefully
+// so release builds can still bundle.
+let UdpSocket: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const m = require('react-native-udp');
+  UdpSocket = m?.default ?? m;
+} catch {
+  UdpSocket = null;
+}
+
 /**
  * Pings a specific IP to see if the server is running there.
  */
@@ -79,16 +90,7 @@ async function scanLocalSubnet(
   return found;
 }
 
-// `react-native-udp` is optional. If it's not installed, we fall back gracefully
-// so release builds can still bundle.
-let UdpSocket: any = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const m = require('react-native-udp');
-  UdpSocket = m?.default ?? m;
-} catch {
-  UdpSocket = null;
-}
+
 
 /**
  * PRODUCTION SAFE UDP Discovery
