@@ -11,19 +11,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBillingHistory } from '../hooks/useBillingHistory';
-import type { BillingRow, DatePreset } from '../hooks/useBillingHistory';
+import type { BillingRow } from '../hooks/useBillingHistory';
 import BillingHistoryFilterPanel from '../components/billing/BillingHistoryFilters';
 import BillingHistoryRow from '../components/billing/BillingHistoryRow';
 import BillingHistoryDetailModal from '../components/billing/BillingHistoryDetailModal';
+import DateRangePicker from '../components/billing/DateRangePicker';
 import { printBill } from '../api/billApi';
 import { colors, neoCard, borderBrutal, neoButtonTertiary } from '../theme/neoBrutalism';
 
-const DATE_PRESETS: { key: DatePreset; label: string }[] = [
-  { key: 'today', label: 'Today' },
-  { key: 'yesterday', label: 'Yesterday' },
-  { key: 'thisWeek', label: 'This Week' },
-  { key: 'thisMonth', label: 'This Month' },
-];
+
 
 export default function BillingHistoryScreen() {
   const {
@@ -34,8 +30,8 @@ export default function BillingHistoryScreen() {
     totalPages,
     nextPage,
     prevPage,
-    datePreset,
-    setDatePreset,
+    dateRange,
+    setDateRange,
     filters,
     setFilters,
     refetch,
@@ -103,28 +99,12 @@ export default function BillingHistoryScreen() {
         <Text style={styles.title}>BILLING HISTORY</Text>
       </View>
 
-      {/* Date presets */}
-      <View style={styles.dateRow}>
-        {DATE_PRESETS.map(({ key, label }) => (
-          <Pressable
-            key={key}
-            style={({ pressed }) => [
-              styles.dateChip,
-              datePreset === key && styles.dateChipActive,
-              { opacity: pressed ? 0.7 : 1 },
-            ]}
-            onPress={() => setDatePreset(key)}
-          >
-            <Text
-              style={[
-                styles.dateChipText,
-                datePreset === key && styles.dateChipTextActive,
-              ]}
-            >
-              {label}
-            </Text>
-          </Pressable>
-        ))}
+      {/* Date Range Picker */}
+      <View style={styles.datePickerWrap}>
+        <DateRangePicker 
+          onRangeChange={setDateRange}
+          initialRange={dateRange}
+        />
       </View>
 
       {/* Filters */}
@@ -223,33 +203,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 2,
   },
-  dateRow: {
-    flexDirection: 'row',
+  datePickerWrap: {
     paddingHorizontal: 16,
-    gap: 8,
-    marginBottom: 12,
-  },
-  dateChip: {
-    backgroundColor: colors.base200,
-    borderWidth: 3,
-    borderColor: colors.brutalBorder,
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  dateChipActive: {
-    backgroundColor: colors.tertiary,
-    borderColor: colors.tertiary,
-  },
-  dateChipText: {
-    color: colors.foreground,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  dateChipTextActive: {
-    color: colors.background,
+    marginBottom: 4,
   },
   filterWrap: {
     paddingHorizontal: 16,

@@ -68,7 +68,7 @@ export default function BillingHistoryRow({
       <View style={styles.bottomLine}>
         <View style={styles.paymentWrap}>
           <Text style={styles.paymentText}>{paymentLabel}</Text>
-          {isSplitPayment && bill.splitModes && (
+          {isSplitPayment && Array.isArray(bill.splitModes) && (
             <Text style={styles.splitDetail}>
               {bill.splitModes.map(m => `${m.mode} ₹${m.amount}`).join(', ')}
             </Text>

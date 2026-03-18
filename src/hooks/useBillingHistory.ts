@@ -4,6 +4,7 @@ import { getBillById } from '../api/billApi';
 import { useAuthStore } from '../store/authStore';
 import { handleApiError, getErrorMessage } from '../utils/errorHandling';
 import type { SettledBill, BillingHistoryFilters, BillPreviewData } from '../api/types';
+import { getRangeForPreset, DEFAULT_BILLING_START_TIME } from '../utils/dateUtils';
 
 // ----- Row types for grouped bills -----
 export interface SingleBillRow {
@@ -21,36 +22,7 @@ export interface SplitBillGroup {
 
 export type BillingRow = SingleBillRow | SplitBillGroup;
 
-// ----- Date range presets -----
-export type DatePreset = 'today' | 'yesterday' | 'thisWeek' | 'thisMonth' | 'custom';
-
-function getDateRange(preset: DatePreset): { from: number; to: number } {
-  const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  switch (preset) {
-    case 'today':
-      return { from: startOfDay.getTime(), to: Date.now() };
-    case 'yesterday': {
-      const yd = new Date(startOfDay);
-      yd.setDate(yd.getDate() - 1);
-      return { from: yd.getTime(), to: startOfDay.getTime() - 1 };
-    }
-    case 'thisWeek': {
-      const day = startOfDay.getDay();
-      const diff = day === 0 ? 6 : day - 1; // Monday start
-      const weekStart = new Date(startOfDay);
-      weekStart.setDate(weekStart.getDate() - diff);
-      return { from: weekStart.getTime(), to: Date.now() };
-    }
-    case 'thisMonth': {
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { from: monthStart.getTime(), to: Date.now() };
-    }
-    default:
-      return { from: startOfDay.getTime(), to: Date.now() };
-  }
-}
+// Moved to dateUtils.ts
 
 // ----- Transform / group bills -----
 function transformBills(bills: SettledBill[]): BillingRow[] {
@@ -107,18 +79,14 @@ export function useBillingHistory() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [datePreset, setDatePreset] = useState<DatePreset>('today');
-  const [customRange, setCustomRange] = useState<{ from: number; to: number } | null>(null);
+  const [dateRange, setDateRange] = useState<{ from: number; to: number }>(
+    getRangeForPreset('today', DEFAULT_BILLING_START_TIME)
+  );
   const [filters, setFilters] = useState<BillingHistoryFilters>({});
 
   // Bill detail
   const [detailBill, setDetailBill] = useState<BillPreviewData | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-
-  const dateRange = useMemo(
-    () => (datePreset === 'custom' && customRange ? customRange : getDateRange(datePreset)),
-    [datePreset, customRange],
-  );
 
   const fetchBills = useCallback(async (pageNum: number = 1) => {
     if (!outletId) {
@@ -182,10 +150,8 @@ export function useBillingHistory() {
     totalPages,
     nextPage,
     prevPage,
-    datePreset,
-    setDatePreset,
-    customRange,
-    setCustomRange,
+    dateRange,
+    setDateRange,
     filters,
     setFilters,
     refetch: () => fetchBills(page),
