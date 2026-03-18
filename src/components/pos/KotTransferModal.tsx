@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   TextInput,
   StyleSheet,
@@ -112,9 +112,12 @@ export default function KotTransferModal({
               {step === 'table' && 'Select destination table'}
               {step === 'confirm' && 'Confirm transfer'}
             </Text>
-            <TouchableOpacity onPress={handleClose}>
+            <Pressable
+              onPress={handleClose}
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
               <Text style={styles.closeText}>Close</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {step === 'items' && (
@@ -126,31 +129,35 @@ export default function KotTransferModal({
                     <View key={item.id} style={styles.itemRow}>
                       <Text style={styles.itemName}>{item.name} (max {item.quantity})</Text>
                       <View style={styles.qtyRow}>
-                        <TouchableOpacity
-                          style={styles.qtyBtn}
+                        <Pressable
+                          style={({ pressed }) => [styles.qtyBtn, { opacity: pressed ? 0.7 : 1 }]}
                           onPress={() => setQty(item.id, item.quantity, -1)}
                         >
                           <Text style={styles.qtyBtnText}>−</Text>
-                        </TouchableOpacity>
+                        </Pressable>
                         <Text style={styles.qtyNum}>{qty}</Text>
-                        <TouchableOpacity
-                          style={styles.qtyBtn}
+                        <Pressable
+                          style={({ pressed }) => [styles.qtyBtn, { opacity: pressed ? 0.7 : 1 }]}
                           onPress={() => setQty(item.id, item.quantity, 1)}
                         >
                           <Text style={styles.qtyBtnText}>+</Text>
-                        </TouchableOpacity>
+                        </Pressable>
                       </View>
                     </View>
                   );
                 })}
               </ScrollView>
-              <TouchableOpacity
-                style={[styles.nextBtn, !canGoToTable && styles.nextBtnDisabled]}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.nextBtn,
+                  !canGoToTable && styles.nextBtnDisabled,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
                 onPress={() => setStep('table')}
                 disabled={!canGoToTable}
               >
                 <Text style={styles.nextBtnText}>Next: Select table</Text>
-              </TouchableOpacity>
+              </Pressable>
             </>
           )}
 
@@ -158,26 +165,37 @@ export default function KotTransferModal({
             <>
               <ScrollView style={styles.scroll}>
                 {tables.map(t => (
-                  <TouchableOpacity
+                  <Pressable
                     key={t.id}
-                    style={[styles.tableBtn, toTableId === t.id && styles.tableBtnActive]}
+                    style={({ pressed }) => [
+                      styles.tableBtn,
+                      toTableId === t.id && styles.tableBtnActive,
+                      { opacity: pressed ? 0.7 : 1 },
+                    ]}
                     onPress={() => setToTableId(t.id)}
                   >
                     <Text style={styles.tableBtnText}>{t.name}</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 ))}
               </ScrollView>
               <View style={styles.row}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => setStep('items')}>
+                <Pressable
+                  style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
+                  onPress={() => setStep('items')}
+                >
                   <Text style={styles.backBtnText}>Back</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.nextBtn, !toTableId && styles.nextBtnDisabled]}
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.nextBtn,
+                    !toTableId && styles.nextBtnDisabled,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
                   onPress={() => setStep('confirm')}
                   disabled={!toTableId}
                 >
                   <Text style={styles.nextBtnText}>Next</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </>
           )}
@@ -196,11 +214,18 @@ export default function KotTransferModal({
                 placeholderTextColor="#64748B"
               />
               <View style={styles.row}>
-                <TouchableOpacity style={styles.backBtn} onPress={() => setStep('table')}>
+                <Pressable
+                  style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
+                  onPress={() => setStep('table')}
+                >
                   <Text style={styles.backBtnText}>Back</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.confirmBtn, loading && styles.confirmBtnDisabled]}
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.confirmBtn,
+                    loading && styles.confirmBtnDisabled,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
                   onPress={handleConfirm}
                   disabled={loading}
                 >
@@ -209,7 +234,7 @@ export default function KotTransferModal({
                   ) : (
                     <Text style={styles.confirmBtnText}>Confirm transfer</Text>
                   )}
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </>
           )}

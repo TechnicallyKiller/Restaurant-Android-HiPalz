@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import type { Kot, KotItem, KotItemVariant, KotAddonGroup, KotAddonChoice } from '../../api/types';
 
 interface KotCardProps {
@@ -71,9 +71,12 @@ export default function KotCard({ kot, onReprint }: KotCardProps) {
           <Text style={styles.meta}>Table: {kot.tableName}</Text>
           <Text style={styles.meta}>{kot.userName} · {kot.userPhone}</Text>
         </View>
-        <TouchableOpacity style={styles.reprintBtn} onPress={onReprint}>
+        <Pressable
+          style={({ pressed }) => [styles.reprintBtn, { opacity: pressed ? 0.7 : 1 }]}
+          onPress={onReprint}
+        >
           <Text style={styles.reprintBtnText}>Reprint</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
       {kot.items.map(item => (
         <KotLineRow key={item.id} item={item} />

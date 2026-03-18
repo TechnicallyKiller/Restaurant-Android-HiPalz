@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   StyleSheet,
   ActivityIndicator,
@@ -113,7 +113,12 @@ export default function BillExtrasModal({
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>Extras</Text>
-            <TouchableOpacity onPress={onClose}><Text style={styles.closeText}>Close</Text></TouchableOpacity>
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Text style={styles.closeText}>Close</Text>
+            </Pressable>
           </View>
           <Text style={styles.sectionTitle}>Container charge</Text>
           <View style={styles.row}>
@@ -125,17 +130,29 @@ export default function BillExtrasModal({
               placeholder="Amount ₹"
               placeholderTextColor="#64748B"
             />
-            <TouchableOpacity
-              style={[styles.addBtn, loading && styles.btnDisabled]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.addBtn,
+                loading && styles.btnDisabled,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={handleAddContainer}
               disabled={loading}
             >
-              {loading ? <ActivityIndicator color="#0F172A" size="small" /> : <Text style={styles.addBtnText}>Add</Text>}
-            </TouchableOpacity>
+              {loading ? (
+                <ActivityIndicator color="#0F172A" size="small" />
+              ) : (
+                <Text style={styles.addBtnText}>Add</Text>
+              )}
+            </Pressable>
           </View>
-          <TouchableOpacity style={styles.removeLink} onPress={handleRemoveContainer} disabled={loading}>
+          <Pressable
+            style={({ pressed }) => [styles.removeLink, { opacity: pressed ? 0.7 : 1 }]}
+            onPress={handleRemoveContainer}
+            disabled={loading}
+          >
             <Text style={styles.removeLinkText}>Remove container charge</Text>
-          </TouchableOpacity>
+          </Pressable>
 
           <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Delivery charge</Text>
           <View style={styles.row}>
@@ -147,17 +164,25 @@ export default function BillExtrasModal({
               placeholder="Amount ₹"
               placeholderTextColor="#64748B"
             />
-            <TouchableOpacity
-              style={[styles.addBtn, loading && styles.btnDisabled]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.addBtn,
+                loading && styles.btnDisabled,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={handleAddDelivery}
               disabled={loading}
             >
               <Text style={styles.addBtnText}>Add</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
-          <TouchableOpacity style={styles.removeLink} onPress={handleRemoveDelivery} disabled={loading}>
+          <Pressable
+            style={({ pressed }) => [styles.removeLink, { opacity: pressed ? 0.7 : 1 }]}
+            onPress={handleRemoveDelivery}
+            disabled={loading}
+          >
             <Text style={styles.removeLinkText}>Remove delivery charge</Text>
-          </TouchableOpacity>
+          </Pressable>
 
           <Text style={styles.label}>Reason (for remove)</Text>
           <TextInput

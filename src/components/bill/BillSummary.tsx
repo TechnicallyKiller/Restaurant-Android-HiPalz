@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import type { BillPreviewData } from '../../api/types';
 
 export interface BillSummaryProps {
@@ -61,14 +61,14 @@ export default function BillSummary({
       <View style={styles.valueRow}>
         <Text style={[styles.value, options?.valueStyle]}>{value}</Text>
         {options?.removable && modifiable && options?.onRemove && (
-          <TouchableOpacity
-            style={styles.removeBtn}
+          <Pressable
+            style={({ pressed }) => [styles.removeBtn, { opacity: pressed ? 0.7 : 1 }]}
             onPress={options.onRemove}
             accessibilityLabel={`Remove ${label.toLowerCase()}`}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Text style={styles.removeBtnText}>✕</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
     </View>
@@ -78,8 +78,8 @@ export default function BillSummary({
     <View style={[styles.row, styles.payableRow]}>
       <View style={styles.payableLeft}>
         {onRefresh && (
-          <TouchableOpacity
-            style={styles.refreshBtn}
+          <Pressable
+            style={({ pressed }) => [styles.refreshBtn, { opacity: pressed ? 0.7 : 1 }]}
             onPress={handleRefresh}
             disabled={refreshing}
             accessibilityLabel="Refresh bill"
@@ -89,7 +89,7 @@ export default function BillSummary({
             ) : (
               <Text style={styles.refreshBtnText}>↻ Refresh</Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
         )}
         <Text style={styles.payableLabel}>Payable</Text>
       </View>
@@ -99,10 +99,9 @@ export default function BillSummary({
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.toggleRow}
+      <Pressable
+        style={({ pressed }) => [styles.toggleRow, { opacity: pressed ? 0.7 : 1 }]}
         onPress={() => setExpanded(!expanded)}
-        activeOpacity={0.7}
         accessibilityLabel={expanded ? 'Collapse summary' : 'Expand summary'}
       >
         <Text style={styles.chevron}>{expanded ? '▼' : '▲'}</Text>
@@ -111,8 +110,8 @@ export default function BillSummary({
         ) : (
           <View style={styles.collapsedRight}>
             {onRefresh && (
-              <TouchableOpacity
-                style={styles.refreshBtn}
+              <Pressable
+                style={({ pressed }) => [styles.refreshBtn, { opacity: pressed ? 0.7 : 1 }]}
                 onPress={e => {
                   e.stopPropagation();
                   handleRefresh();
@@ -124,13 +123,13 @@ export default function BillSummary({
                 ) : (
                   <Text style={styles.refreshBtnText}>↻ Refresh</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             )}
             <Text style={styles.payableLabel}>Payable</Text>
             <Text style={[styles.payableValue, styles.collapsedPayableValue]}>{formatRupee(data.payable)}</Text>
           </View>
         )}
-      </TouchableOpacity>
+      </Pressable>
 
       {expanded && (
         <>
@@ -171,9 +170,12 @@ export default function BillSummary({
             )}
           {payableRowContent}
           {showAddTipButton && modifiable && (data.tipTotal ?? 0) === 0 && onAddTipClick && (
-            <TouchableOpacity style={styles.addTipBtn} onPress={onAddTipClick}>
+            <Pressable
+              style={({ pressed }) => [styles.addTipBtn, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={onAddTipClick}
+            >
               <Text style={styles.addTipBtnText}>Add tip</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </>
       )}

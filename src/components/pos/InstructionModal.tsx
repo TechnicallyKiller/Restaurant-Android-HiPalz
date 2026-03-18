@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, TextInput, StyleSheet } from 'react-native';
 
 const MAX_LENGTH = 50;
 const CHIPS = ['Less spicy', 'Extra spicy', 'No salt', 'Well done', 'No onion'];
@@ -56,18 +56,28 @@ export default function InstructionModal({
           <Text style={styles.chars}>{text.length}/{MAX_LENGTH}</Text>
           <View style={styles.chipRow}>
             {CHIPS.map(c => (
-              <TouchableOpacity key={c} style={styles.chip} onPress={() => appendChip(c)}>
+              <Pressable
+                key={c}
+                style={({ pressed }) => [styles.chip, { opacity: pressed ? 0.7 : 1 }]}
+                onPress={() => appendChip(c)}
+              >
                 <Text style={styles.chipText}>{c}</Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+            <Pressable
+              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={onClose}
+            >
               <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.saveBtn, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={handleSave}
+            >
               <Text style={styles.saveBtnText}>Save</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </View>

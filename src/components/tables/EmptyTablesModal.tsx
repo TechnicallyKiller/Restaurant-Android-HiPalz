@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   StyleSheet,
 } from 'react-native';
@@ -63,9 +63,12 @@ export default function EmptyTablesModal({
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={styles.title}>Start table</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.7 : 1 }]}
+            >
               <Text style={styles.closeBtnText}>Close</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
           <View style={styles.searchWrap}>
             <SearchInput
@@ -86,14 +89,14 @@ export default function EmptyTablesModal({
                   <Text style={styles.areaName}>{area.name}</Text>
                   <View style={styles.grid}>
                     {tables.map(t => (
-                      <TouchableOpacity
+                      <Pressable
                         key={t.id}
-                        style={styles.tableBtn}
+                        style={({ pressed }) => [styles.tableBtn, { opacity: pressed ? 0.7 : 1 }]}
                         onPress={() => handleSelect(t)}
                       >
                         <Text style={styles.tableBtnName}>{t.name}</Text>
                         <Text style={styles.tableBtnSeats}>{t.capacity} seats</Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     ))}
                   </View>
                 </View>

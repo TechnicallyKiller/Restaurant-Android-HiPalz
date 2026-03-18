@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import type { Item, AttributeValueType } from '../../api/types';
 import { colors, neoCard, neoButtonTertiary } from '../../theme/neoBrutalism';
 
@@ -41,18 +41,29 @@ export default function ItemCard({
       <View style={styles.bottomRow}>
         <Text style={styles.price}>₹{item.price}</Text>
         {quantityInCart === 0 ? (
-          <TouchableOpacity style={styles.addBtn} onPress={onAdd} activeOpacity={0.8}>
+          <Pressable
+            style={({ pressed }) => [styles.addBtn, { opacity: pressed ? 0.7 : 1 }]}
+            onPress={onAdd}
+          >
             <Text style={styles.addBtnText}>Add</Text>
-          </TouchableOpacity>
+          </Pressable>
         ) : (
           <View style={styles.qtyRow}>
-            <TouchableOpacity style={styles.qtyBtn} onPress={onDecrement} accessibilityLabel="Decrease quantity">
+            <Pressable
+              style={({ pressed }) => [styles.qtyBtn, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={onDecrement}
+              accessibilityLabel="Decrease quantity"
+            >
               <Text style={styles.qtyBtnText}>−</Text>
-            </TouchableOpacity>
+            </Pressable>
             <Text style={styles.qtyValue}>{quantityInCart}</Text>
-            <TouchableOpacity style={styles.qtyBtn} onPress={onIncrement} accessibilityLabel="Increase quantity">
+            <Pressable
+              style={({ pressed }) => [styles.qtyBtn, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={onIncrement}
+              accessibilityLabel="Increase quantity"
+            >
               <Text style={styles.qtyBtnText}>+</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
       </View>

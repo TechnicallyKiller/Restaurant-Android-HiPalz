@@ -14,7 +14,7 @@ export function resetToLogin(): void {
 export function resetToTables(): void {
   if (navigationRef.isReady()) {
     navigationRef.dispatch(
-      CommonActions.reset({ index: 0, routes: [{ name: 'Tables' }] })
+      CommonActions.reset({ index: 0, routes: [{ name: 'MainTabs' }] })
     );
   }
 }

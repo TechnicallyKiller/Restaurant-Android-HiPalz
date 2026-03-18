@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Modal,
   Switch,
   Alert,
@@ -58,9 +58,8 @@ export default function Sidebar({ visible, onClose, onLogout }: SidebarProps) {
 
   return (
     <Modal visible animationType="fade" transparent>
-      <TouchableOpacity
+      <Pressable
         style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}
-        activeOpacity={1}
         onPress={onClose}
       />
       <View style={[styles.sheet, { backgroundColor: c.base100, borderRightColor: c.brutalBorder }]}>
@@ -84,12 +83,15 @@ export default function Sidebar({ visible, onClose, onLogout }: SidebarProps) {
           />
         </View>
         <View style={styles.spacer} />
-        <TouchableOpacity
-          style={[styles.logoutBtn, { borderColor: c.error, borderWidth: 3 }]}
+        <Pressable
+          style={({ pressed }) => [
+            styles.logoutBtn,
+            { borderColor: c.error, borderWidth: 3, opacity: pressed ? 0.7 : 1 },
+          ]}
           onPress={handleLogout}
         >
           <Text style={[styles.logoutBtnText, { color: c.error }]}>Logout</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </Modal>
   );

@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   StyleSheet,
   ActivityIndicator,
@@ -169,7 +169,12 @@ export default function InstanceBillModal({
           <View style={styles.sheet}>
             <View style={styles.header}>
               <Text style={styles.title}>Settle instance — {bill?.tableName ?? 'Instance'}</Text>
-              <TouchableOpacity onPress={onClose}><Text style={styles.closeText}>Close</Text></TouchableOpacity>
+              <Pressable
+                onPress={onClose}
+                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+              >
+                <Text style={styles.closeText}>Close</Text>
+              </Pressable>
             </View>
             {loading && !bill ? (
               <ActivityIndicator color="#FFD700" style={styles.loader} />
@@ -181,12 +186,13 @@ export default function InstanceBillModal({
                   {bill?.isSplit && variants && variants.length > 0 && (
                     <View style={styles.variantRow}>
                       {variants.map((v, i) => (
-                        <TouchableOpacity
+                        <Pressable
                           key={v.id ?? i}
-                          style={[
+                          style={({ pressed }) => [
                             styles.variantBtn,
                             v.id === selectedSplitBillId && styles.variantBtnActive,
                             v.status === 'PAID' && styles.variantBtnPaid,
+                            { opacity: pressed ? 0.7 : 1 },
                           ]}
                           onPress={() => setSelectedSplitBillId(v.id ?? null)}
                         >
@@ -194,7 +200,7 @@ export default function InstanceBillModal({
                             Bill {i + 1} · ₹{v.payable?.toFixed(0) ?? '0'}
                           </Text>
                           {v.status === 'PAID' && <Text style={styles.variantPaidBadge}>Paid</Text>}
-                        </TouchableOpacity>
+                        </Pressable>
                       ))}
                     </View>
                   )}
@@ -218,46 +224,69 @@ export default function InstanceBillModal({
                   {displayBill?.status !== 'PAID' && (
                     <>
                       <View style={styles.actionRow}>
-                        <TouchableOpacity style={styles.smallBtn} onPress={() => setDiscountVisible(true)}>
+                        <Pressable
+                          style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
+                          onPress={() => setDiscountVisible(true)}
+                        >
                           <Text style={styles.smallBtnText}>Discount</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.smallBtn} onPress={() => setServiceChargeVisible(true)}>
+                        </Pressable>
+                        <Pressable
+                          style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
+                          onPress={() => setServiceChargeVisible(true)}
+                        >
                           <Text style={styles.smallBtnText}>Service charge</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.smallBtn} onPress={() => setExtrasVisible(true)}>
+                        </Pressable>
+                        <Pressable
+                          style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
+                          onPress={() => setExtrasVisible(true)}
+                        >
                           <Text style={styles.smallBtnText}>Extras</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.smallBtn} onPress={() => setTipVisible(true)}>
+                        </Pressable>
+                        <Pressable
+                          style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
+                          onPress={() => setTipVisible(true)}
+                        >
                           <Text style={styles.smallBtnText}>Add tip</Text>
-                        </TouchableOpacity>
+                        </Pressable>
                         {!bill?.isSplit && (
-                          <TouchableOpacity style={styles.smallBtn} onPress={() => setSplitVisible(true)}>
+                          <Pressable
+                            style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
+                            onPress={() => setSplitVisible(true)}
+                          >
                             <Text style={styles.smallBtnText}>Split bill</Text>
-                          </TouchableOpacity>
+                          </Pressable>
                         )}
                         {bill?.isSplit && (
-                          <TouchableOpacity
-                            style={[styles.smallBtn, merging && styles.btnDisabled]}
+                          <Pressable
+                            style={({ pressed }) => [
+                              styles.smallBtn,
+                              merging && styles.btnDisabled,
+                              { opacity: pressed ? 0.7 : 1 },
+                            ]}
                             onPress={handleMergeBill}
                             disabled={merging}
                           >
                             <Text style={styles.smallBtnText}>{merging ? '…' : 'Merge bill'}</Text>
-                          </TouchableOpacity>
+                          </Pressable>
                         )}
-                        <TouchableOpacity
-                          style={[styles.smallBtn, printing && styles.btnDisabled]}
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.smallBtn,
+                            printing && styles.btnDisabled,
+                            { opacity: pressed ? 0.7 : 1 },
+                          ]}
                           onPress={handlePrint}
                           disabled={printing}
                         >
                           <Text style={styles.smallBtnText}>{printing ? '…' : 'Print'}</Text>
-                        </TouchableOpacity>
+                        </Pressable>
                       </View>
-                      <TouchableOpacity
-                        style={styles.settleBtn}
+                      <Pressable
+                        style={({ pressed }) => [styles.settleBtn, { opacity: pressed ? 0.7 : 1 }]}
                         onPress={() => setSettleVisible(true)}
                       >
                         <Text style={styles.settleBtnText}>Settle</Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     </>
                   )}
                 </View>

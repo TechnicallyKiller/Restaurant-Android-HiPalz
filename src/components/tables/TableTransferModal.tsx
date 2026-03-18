@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   TextInput,
   StyleSheet,
@@ -68,24 +68,31 @@ export default function TableTransferModal({
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>Transfer table</Text>
-            <TouchableOpacity onPress={onClose}>
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
               <Text style={styles.closeText}>Close</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
           <Text style={styles.fromLabel}>From: {fromTable.name}</Text>
           <Text style={styles.label}>Destination table</Text>
           <ScrollView style={styles.tableList} keyboardShouldPersistTaps="handled">
             {tables.map(t => (
-              <TouchableOpacity
+              <Pressable
                 key={t.id}
-                style={[styles.tableBtn, toTableId === t.id && styles.tableBtnActive]}
+                style={({ pressed }) => [
+                  styles.tableBtn,
+                  toTableId === t.id && styles.tableBtnActive,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
                 onPress={() => setToTableId(t.id)}
               >
                 <Text style={[styles.tableBtnText, toTableId === t.id && styles.tableBtnTextActive]}>{t.name}</Text>
                 {t.tableStatus ? (
                   <Text style={styles.tableBtnStatus}>{t.tableStatus}</Text>
                 ) : null}
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </ScrollView>
           <Text style={styles.label}>Reason (optional)</Text>
@@ -97,11 +104,18 @@ export default function TableTransferModal({
             placeholderTextColor="#64748B"
           />
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+            <Pressable
+              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={onClose}
+            >
               <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.confirmBtn, (!toTableId || loading) && styles.confirmBtnDisabled]}
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.confirmBtn,
+                (!toTableId || loading) && styles.confirmBtnDisabled,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={handleConfirm}
               disabled={!toTableId || loading}
             >
@@ -110,7 +124,7 @@ export default function TableTransferModal({
               ) : (
                 <Text style={styles.confirmBtnText}>Confirm transfer</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </View>

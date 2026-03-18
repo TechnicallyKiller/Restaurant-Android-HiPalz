@@ -233,6 +233,37 @@ export async function settleSplit(
   return parseApiResponse(res);
 }
 
+// ----- Settled / Billing History -----
+export async function getSettledBills(
+  outletId: string,
+  from: number,
+  to: number,
+  page: number = 1,
+  limit: number = 20,
+  filters?: Partial<import('./types').BillingHistoryFilters>,
+): Promise<import('./types').SettledBillsResponse> {
+  const params: Record<string, string | number> = {
+    outletId,
+    from,
+    to,
+    page,
+    limit,
+  };
+  if (filters?.invoiceNumber) params.invoiceNumber = filters.invoiceNumber;
+  if (filters?.tableName) params.tableName = filters.tableName;
+  if (filters?.customerName) params.customerName = filters.customerName;
+  if (filters?.paymentMethod) params.paymentMethod = filters.paymentMethod;
+  if (filters?.areaType) params.areaType = filters.areaType;
+  if (filters?.minAmount != null) params.minAmount = filters.minAmount;
+  if (filters?.maxAmount != null) params.maxAmount = filters.maxAmount;
+
+  const res = await apiClient.get<ApiResponse<import('./types').SettledBillsResponse>>(
+    '/r/dine-in/bill/settled',
+    { params },
+  );
+  return parseApiResponse(res);
+}
+
 // ----- Print -----
 export async function printBill(billId: string): Promise<{ success: boolean }> {
   const res = await apiClient.post<ApiResponse<{ success: boolean }>>(

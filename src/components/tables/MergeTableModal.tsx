@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   StyleSheet,
   ActivityIndicator,
@@ -72,9 +72,12 @@ export default function MergeTableModal({
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>Merge table</Text>
-            <TouchableOpacity onPress={onClose}>
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
               <Text style={styles.closeText}>Close</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
           <Text style={styles.destLabel}>Into: {destinationTable.name}</Text>
           <Text style={styles.label}>Select source tables (same area)</Text>
@@ -83,24 +86,34 @@ export default function MergeTableModal({
               <Text style={styles.empty}>No other tables in this area.</Text>
             ) : (
               tablesSameArea.map(t => (
-                <TouchableOpacity
+                <Pressable
                   key={t.id}
-                  style={[styles.tableBtn, selectedIds.has(t.id) && styles.tableBtnActive]}
+                  style={({ pressed }) => [
+                    styles.tableBtn,
+                    selectedIds.has(t.id) && styles.tableBtnActive,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
                   onPress={() => toggle(t.id)}
                 >
-                  <Text style={[styles.tableBtnText, selectedIds.has(t.id) && styles.tableBtnTextActive]}>{t.name}</Text>
-                </TouchableOpacity>
+                  <Text style={[styles.tableBtnText, selectedIds.has(t.id) && styles.tableBtnTextActive]}>
+                    {t.name}
+                  </Text>
+                </Pressable>
               ))
             )}
           </ScrollView>
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+            <Pressable
+              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={onClose}
+            >
               <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
                 styles.confirmBtn,
                 (selectedIds.size === 0 || loading) && styles.confirmBtnDisabled,
+                { opacity: pressed ? 0.7 : 1 },
               ]}
               onPress={handleConfirm}
               disabled={selectedIds.size === 0 || loading}
@@ -110,7 +123,7 @@ export default function MergeTableModal({
               ) : (
                 <Text style={styles.confirmBtnText}>Merge</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </View>

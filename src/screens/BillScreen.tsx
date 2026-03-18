@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   ActivityIndicator,
   Alert,
@@ -18,6 +18,7 @@ import {
   useBillGenerate,
   useBillByTable,
   usePaymentModes,
+  useKots,
 } from '../hooks';
 import { createTableInstance, printBill, clubSplits, getSplitsByBillId } from '../api';
 import { getErrorMessage } from '../utils/errorHandling';
@@ -31,6 +32,7 @@ import SplitBillModal from '../components/bill/SplitBillModal';
 import SettleModal from '../components/bill/SettleModal';
 import BillSummary from '../components/bill/BillSummary';
 import BillItemGrid from '../components/bill/BillItemGrid';
+import BillGeneratedWarningModal from '../components/tables/BillGeneratedWarningModal';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -51,6 +53,8 @@ const BillScreen = ({ navigation }: Props) => {
   const { modes, refetch: refetchModes } = usePaymentModes();
 
   const staffId = useAuthStore(s => s.user?.id ?? '');
+  const outletId = useAuthStore(s => s.user?.outletId ?? '');
+  const { kots } = useKots(currentTable?.id, outletId);
   const [settleVisible, setSettleVisible] = useState(false);
   const [discountVisible, setDiscountVisible] = useState(false);
   const [serviceChargeVisible, setServiceChargeVisible] = useState(false);
@@ -62,10 +66,11 @@ const BillScreen = ({ navigation }: Props) => {
   const [printing, setPrinting] = useState(false);
   const [variants, setVariants] = useState<BillPreviewData[] | null>(null);
   const [selectedSplitBillId, setSelectedSplitBillId] = useState<string | null>(null);
+  const [warningVisible, setWarningVisible] = useState(false);
 
   useEffect(() => {
-    if (currentTable && !bill) fetchPreview();
-  }, [currentTable?.id]);
+    if (currentTable && !bill && kots.length > 0) fetchPreview();
+  }, [currentTable?.id, kots.length]);
 
   useEffect(() => {
     refetchModes();
@@ -92,7 +97,9 @@ const BillScreen = ({ navigation }: Props) => {
 
   const handleGenerate = async () => {
     const data = await generate();
-    if (data) setSettleVisible(false);
+    if (data) {
+      setWarningVisible(true);
+    }
   };
 
   const refetchBill = async () => {
@@ -120,10 +127,10 @@ const BillScreen = ({ navigation }: Props) => {
           onPress: async () => {
             setCreatingInstance(true);
             try {
-              await createTableInstance({ billId: bill.id, staffId });
+              await createTableInstance({ billId: bill.id!, staffId });
               setBillForTable(currentTable!.id, null);
               refetchTables();
-              navigation.navigate('Tables');
+              navigation.navigate('MainTabs');
             } catch (err) {
               Alert.alert('Failed', getErrorMessage(err));
             } finally {
@@ -165,13 +172,13 @@ const BillScreen = ({ navigation }: Props) => {
     if (allPaid === true) {
       setBillForTable(currentTable!.id, null);
       refetchTables();
-      navigation.navigate('Tables');
+      navigation.navigate('MainTabs');
       return;
     }
     if (!bill?.isSplit) {
       setBillForTable(currentTable!.id, null);
       refetchTables();
-      navigation.navigate('Tables');
+      navigation.navigate('MainTabs');
       return;
     }
     await refetchBill();
@@ -181,7 +188,7 @@ const BillScreen = ({ navigation }: Props) => {
       if (v.length > 0 && v.every(x => x.status === 'PAID')) {
         setBillForTable(currentTable!.id, null);
         refetchTables();
-        navigation.navigate('Tables');
+        navigation.navigate('MainTabs');
       }
     }
     refetchTables();
@@ -191,9 +198,13 @@ const BillScreen = ({ navigation }: Props) => {
     return (
       <SafeAreaView style={[styles.container, styles.centered]} edges={['top']}>
         <Text style={styles.noTable}>No table selected</Text>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+        <Pressable
+          style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
           <Text style={styles.backBtnText}>Back</Text>
-        </TouchableOpacity>
+        </Pressable>
       </SafeAreaView>
     );
   }
@@ -207,9 +218,15 @@ const BillScreen = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.7 : 1 }]}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <View style={styles.backBtnCircle}>
+            <Text style={styles.backIcon}>←</Text>
+          </View>
+        </Pressable>
         <Text style={styles.title}>Bill — {currentTable.name}</Text>
       </View>
 
@@ -231,12 +248,13 @@ const BillScreen = ({ navigation }: Props) => {
             {bill?.isSplit && variants && variants.length > 0 && (
               <View style={styles.variantRow}>
                 {variants.map((v, i) => (
-                  <TouchableOpacity
+                  <Pressable
                     key={v.id ?? i}
-                    style={[
+                    style={({ pressed }) => [
                       styles.variantBtn,
                       v.id === selectedSplitBillId && styles.variantBtnActive,
                       v.status === 'PAID' && styles.variantBtnPaid,
+                      { opacity: pressed ? 0.7 : 1 },
                     ]}
                     onPress={() => setSelectedSplitBillId(v.id ?? null)}
                   >
@@ -244,7 +262,7 @@ const BillScreen = ({ navigation }: Props) => {
                       Bill {i + 1} · ₹{v.payable?.toFixed(0) ?? '0'}
                     </Text>
                     {v.status === 'PAID' && <Text style={styles.variantPaidBadge}>Paid</Text>}
-                  </TouchableOpacity>
+                  </Pressable>
                 ))}
               </View>
             )}
@@ -268,44 +286,71 @@ const BillScreen = ({ navigation }: Props) => {
             )}
             {hasBill && (
               <View style={styles.actionRow}>
-                <TouchableOpacity style={styles.smallBtn} onPress={() => setDiscountVisible(true)}>
+                <Pressable
+                  style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
+                  onPress={() => setDiscountVisible(true)}
+                >
                   <Text style={styles.smallBtnText}>Discount</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.smallBtn} onPress={() => setServiceChargeVisible(true)}>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
+                  onPress={() => setServiceChargeVisible(true)}
+                >
                   <Text style={styles.smallBtnText}>Service charge</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.smallBtn} onPress={() => setExtrasVisible(true)}>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
+                  onPress={() => setExtrasVisible(true)}
+                >
                   <Text style={styles.smallBtnText}>Extras</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.smallBtn} onPress={() => setTipVisible(true)}>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
+                  onPress={() => setTipVisible(true)}
+                >
                   <Text style={styles.smallBtnText}>Add tip</Text>
-                </TouchableOpacity>
+                </Pressable>
                 {!bill?.isSplit && (
-                  <TouchableOpacity style={styles.smallBtn} onPress={() => setSplitVisible(true)}>
+                  <Pressable
+                    style={({ pressed }) => [styles.smallBtn, { opacity: pressed ? 0.7 : 1 }]}
+                    onPress={() => setSplitVisible(true)}
+                  >
                     <Text style={styles.smallBtnText}>Split bill</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 )}
                 {bill?.isSplit && (
-                  <TouchableOpacity
-                    style={[styles.smallBtn, merging && styles.btnDisabled]}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.smallBtn,
+                      merging && styles.btnDisabled,
+                      { opacity: pressed ? 0.7 : 1 },
+                    ]}
                     onPress={handleMergeBill}
                     disabled={merging}
                   >
                     <Text style={styles.smallBtnText}>{merging ? '…' : 'Merge bill'}</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 )}
-                <TouchableOpacity
-                  style={[styles.smallBtn, printing && styles.btnDisabled]}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.smallBtn,
+                    printing && styles.btnDisabled,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
                   onPress={handlePrint}
                   disabled={printing}
                 >
                   <Text style={styles.smallBtnText}>{printing ? '…' : 'Print'}</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             )}
             {!hasBill ? (
-              <TouchableOpacity
-                style={[styles.primaryBtn, isGenerating && styles.btnDisabled]}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  isGenerating && styles.btnDisabled,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
                 onPress={handleGenerate}
                 disabled={isGenerating}
               >
@@ -314,29 +359,37 @@ const BillScreen = ({ navigation }: Props) => {
                 ) : (
                   <Text style={styles.primaryBtnText}>Generate bill</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             ) : (
-              <>
-                {displayBill?.status !== 'PAID' && (
-                  <TouchableOpacity
-                    style={[styles.primaryBtn, styles.payBtn]}
-                    onPress={() => setSettleVisible(true)}
-                  >
-                    <Text style={styles.primaryBtnText}>Settle</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  style={[styles.instanceBtn, creatingInstance && styles.btnDisabled]}
+              <View style={styles.btnRow}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.instanceBtn,
+                    creatingInstance && styles.btnDisabled,
+                    { flex: 1, marginTop: 0, opacity: pressed ? 0.7 : 1 },
+                  ]}
                   onPress={handleCreateInstance}
                   disabled={creatingInstance}
                 >
                   {creatingInstance ? (
                     <ActivityIndicator color="#0F172A" size="small" />
                   ) : (
-                    <Text style={styles.instanceBtnText}>Create table instance</Text>
+                    <Text style={styles.instanceBtnText}>Create instance</Text>
                   )}
-                </TouchableOpacity>
-              </>
+                </Pressable>
+                {displayBill?.status !== 'PAID' && (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.primaryBtn,
+                      styles.payBtn,
+                      { flex: 1, marginTop: 0, opacity: pressed ? 0.7 : 1 },
+                    ]}
+                    onPress={() => setSettleVisible(true)}
+                  >
+                    <Text style={styles.primaryBtnText}>Settle</Text>
+                  </Pressable>
+                )}
+              </View>
             )}
           </View>
         </View>
@@ -391,6 +444,12 @@ const BillScreen = ({ navigation }: Props) => {
         isSplitVariant={bill?.isSplit === true}
         onSettled={handleSettled}
       />
+
+      <BillGeneratedWarningModal
+        visible={warningVisible}
+        onClose={() => setWarningVisible(false)}
+        actionType="generate"
+      />
     </SafeAreaView>
   );
 };
@@ -403,7 +462,17 @@ const styles = StyleSheet.create({
   backBtnText: { color: '#FFD700', fontWeight: '600' },
   header: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#334155' },
   backButton: { marginRight: 12 },
-  backText: { color: '#FFD700', fontSize: 16 },
+  backBtnCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#334155',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFD700',
+  },
+  backIcon: { color: '#FFD700', fontSize: 20, fontWeight: '800', marginTop: -2 },
   title: { fontSize: 18, fontWeight: '700', color: '#F8FAFC' },
   loading: { flex: 1, justifyContent: 'center' },
   empty: { flex: 1, justifyContent: 'center', padding: 24 },
@@ -444,6 +513,7 @@ const styles = StyleSheet.create({
   instanceBtnText: { color: '#FFD700', fontWeight: '700', fontSize: 14 },
   primaryBtnText: { color: '#0F172A', fontWeight: '700', fontSize: 16 },
   btnDisabled: { opacity: 0.6 },
+  btnRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
 });
 
 export default BillScreen;

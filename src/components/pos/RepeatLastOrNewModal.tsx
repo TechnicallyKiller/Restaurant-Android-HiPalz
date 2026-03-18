@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
 
 interface RepeatLastOrNewModalProps {
   visible: boolean;
@@ -20,23 +20,32 @@ export default function RepeatLastOrNewModal({
 
   return (
     <Modal visible animationType="fade" transparent>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose} />
+      <Pressable style={styles.overlay} onPress={onClose} />
       <View style={styles.sheet}>
         <Text style={styles.title}>Add {itemName}</Text>
         <Text style={styles.subtitle}>
           Same dish with same options (including note) or choose new variant/addons?
         </Text>
-        <TouchableOpacity style={styles.optionBtn} onPress={onRepeatLast}>
+        <Pressable
+          style={({ pressed }) => [styles.optionBtn, { opacity: pressed ? 0.7 : 1 }]}
+          onPress={onRepeatLast}
+        >
           <Text style={styles.optionBtnText}>Repeat last</Text>
           <Text style={styles.optionHint}>Same portion, add-ons & note</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.optionBtn} onPress={onAddNew}>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.optionBtn, { opacity: pressed ? 0.7 : 1 }]}
+          onPress={onAddNew}
+        >
           <Text style={styles.optionBtnText}>Add new</Text>
           <Text style={styles.optionHint}>Choose portion & add-ons</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+          onPress={onClose}
+        >
           <Text style={styles.cancelBtnText}>Cancel</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </Modal>
   );

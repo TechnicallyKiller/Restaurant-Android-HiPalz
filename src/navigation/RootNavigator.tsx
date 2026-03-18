@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './types';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
-import TablesScreen from '../screens/TablesScreen';
+import MainTabNavigator from './MainTabNavigator';
 import POSScreen from '../screens/POSScreen';
 import LiveCartScreen from '../screens/LiveCartScreen';
 import BillScreen from '../screens/BillScreen';
@@ -24,7 +24,7 @@ export default function RootNavigator() {
     >
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Tables" component={TablesScreen} />
+      <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       <Stack.Screen name="POS" component={POSScreen} />
       <Stack.Screen name="LiveCart" component={LiveCartScreen} />
       <Stack.Screen name="Bill" component={BillScreen} />

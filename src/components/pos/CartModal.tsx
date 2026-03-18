@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
@@ -44,9 +44,12 @@ export default function CartModal({
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>Cart</Text>
-            <TouchableOpacity onPress={onClose}>
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
               <Text style={styles.closeText}>Close</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
           <View style={styles.listWrap}>
             <CartListSection
@@ -60,8 +63,12 @@ export default function CartModal({
           {items.length > 0 && (
             <View style={styles.footer}>
               <Text style={styles.totalLabel}>Total: ₹{grandTotal.toFixed(0)}</Text>
-              <TouchableOpacity
-                style={[styles.placeBtn, isPlacing && styles.placeBtnDisabled]}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.placeBtn,
+                  isPlacing && styles.placeBtnDisabled,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
                 onPress={onPlaceOrder}
                 disabled={isPlacing}
               >
@@ -70,7 +77,7 @@ export default function CartModal({
                 ) : (
                   <Text style={styles.placeBtnText}>Place order</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </View>
           )}
         </View>

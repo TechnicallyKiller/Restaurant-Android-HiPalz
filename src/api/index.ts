@@ -30,4 +30,5 @@ export {
   clubSplits,
   settleSplit,
   printBill,
+  getSettledBills,
 } from './billApi';

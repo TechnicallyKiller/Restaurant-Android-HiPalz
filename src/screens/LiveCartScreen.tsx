@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -13,7 +13,7 @@ import { useTableStore } from '../store/tableStore';
 import { useCartStore } from '../store/cartStore';
 import { useBillStore } from '../store/billStore';
 import { useThemeStore } from '../store/themeStore';
-import { usePlaceKot, useKots } from '../hooks';
+import { usePlaceKot, useKots, useAreasAndTables } from '../hooks';
 import { canPlaceKot } from '../utils/permissions';
 import { getColors, borderBrutal, neoButtonTertiary } from '../theme/neoBrutalism';
 import CartListSection from '../components/pos/CartListSection';
@@ -48,6 +48,8 @@ export default function LiveCartScreen({ navigation }: Props) {
 
   const [decrementContext, setDecrementContext] = useState<{ itemName: string; lines: CartItem[] } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [postKotRefreshing, setPostKotRefreshing] = useState(false);
+  const { refetch: refetchTables } = useAreasAndTables();
   const isDark = useThemeStore(s => s.isDark);
   const c = getColors(isDark);
   const cartTotal = cartItems.reduce((s, c) => s + c.totalPrice, 0);
@@ -81,7 +83,12 @@ export default function LiveCartScreen({ navigation }: Props) {
     }
     const result = await place();
     if (result.success) {
-      refetchKots();
+      setPostKotRefreshing(true);
+      try {
+        await Promise.all([refetchKots(), refetchTables()]);
+      } finally {
+        setPostKotRefreshing(false);
+      }
       setActiveTab('kot');
       navigation.replace('POS');
     } else {
@@ -93,9 +100,15 @@ export default function LiveCartScreen({ navigation }: Props) {
     return (
       <SafeAreaView style={[styles.container, styles.centered, { backgroundColor: c.background }]} edges={['top']}>
         <Text style={[styles.noTable, { color: c.mutedForeground }]}>No table selected</Text>
-        <TouchableOpacity style={[styles.backBtn, { backgroundColor: c.base200, borderColor: c.brutalBorder }]} onPress={() => navigation.goBack()}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.backBtn,
+            { backgroundColor: c.base200, borderColor: c.brutalBorder, opacity: pressed ? 0.7 : 1 },
+          ]}
+          onPress={() => navigation.goBack()}
+        >
           <Text style={[styles.backBtnText, { color: c.foreground }]}>Back to POS</Text>
-        </TouchableOpacity>
+        </Pressable>
       </SafeAreaView>
     );
   }
@@ -103,13 +116,20 @@ export default function LiveCartScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <View style={[styles.header, { backgroundColor: c.base100, borderBottomColor: c.brutalBorder }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.7 : 1 }]}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
           <Text style={[styles.backText, { color: c.tertiary }]}>← Back</Text>
-        </TouchableOpacity>
+        </Pressable>
         <Text style={[styles.title, { color: c.foreground }]}>Live Cart</Text>
-        <TouchableOpacity style={styles.burgerBtn} onPress={() => setSidebarOpen(true)}>
+        <Pressable
+          style={({ pressed }) => [styles.burgerBtn, { opacity: pressed ? 0.7 : 1 }]}
+          onPress={() => setSidebarOpen(true)}
+        >
           <Text style={[styles.burgerIcon, { color: c.foreground }]}>☰</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <View style={[styles.tableLabel, { backgroundColor: c.base100, borderBottomColor: c.brutalBorder }]}>
@@ -132,8 +152,12 @@ export default function LiveCartScreen({ navigation }: Props) {
             {cartCount} {cartCount === 1 ? 'item' : 'items'} · ₹{cartTotal.toFixed(0)}
           </Text>
           {canPlace ? (
-            <TouchableOpacity
-              style={[styles.placeOrderBtn, isPlacing && styles.placeOrderBtnDisabled, { backgroundColor: c.tertiary, borderColor: c.brutalBorder }]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.placeOrderBtn,
+                isPlacing && styles.placeOrderBtnDisabled,
+                { backgroundColor: c.tertiary, borderColor: c.brutalBorder, opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={handlePlaceOrder}
               disabled={isPlacing}
             >
@@ -142,7 +166,7 @@ export default function LiveCartScreen({ navigation }: Props) {
               ) : (
                 <Text style={[styles.placeOrderBtnText, { color: c.background }]}>Place order</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
           ) : billSplit ? (
             <Text style={[styles.cantPlaceHint, { color: c.mutedForeground }]}>Bill is split; place order from POS.</Text>
           ) : null}
@@ -168,6 +192,13 @@ export default function LiveCartScreen({ navigation }: Props) {
           navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
         }}
       />
+
+      {postKotRefreshing && (
+        <View style={styles.postKotOverlay}>
+          <ActivityIndicator size="large" color={c.tertiary} />
+          <Text style={[styles.postKotOverlayText, { color: c.foreground }]}>Updating table…</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -208,4 +239,12 @@ const styles = StyleSheet.create({
   placeOrderBtnDisabled: { opacity: 0.6 },
   placeOrderBtnText: { fontWeight: '700', fontSize: 16, textTransform: 'uppercase' as const },
   cantPlaceHint: { fontSize: 14 },
+  postKotOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(12, 10, 9, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  postKotOverlayText: { marginTop: 12, fontSize: 14, fontWeight: '600' },
 });

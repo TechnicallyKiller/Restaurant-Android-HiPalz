@@ -1,5 +1,4 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 interface ErrorFallbackProps {
   message?: string;
@@ -12,9 +11,12 @@ export default function ErrorFallback({ message = 'Failed to load', onRetry }: E
       <Text style={styles.title}>Failed to load</Text>
       {message ? <Text style={styles.message}>{message}</Text> : null}
       {onRetry ? (
-        <TouchableOpacity style={styles.button} onPress={onRetry}>
+        <Pressable
+          style={({ pressed }) => [styles.button, { opacity: pressed ? 0.7 : 1 }]}
+          onPress={onRetry}
+        >
           <Text style={styles.buttonText}>Try again</Text>
-        </TouchableOpacity>
+        </Pressable>
       ) : null}
     </View>
   );

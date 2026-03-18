@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import type { CartItem } from '../../api/types';
 import { colors, neoCard } from '../../theme/neoBrutalism';
 import type { AttributeValueType } from '../../api/types';
@@ -67,38 +67,51 @@ function CartLineRow({
       </View>
       <View style={styles.lineActions}>
         {line.notes?.trim() ? (
-          <TouchableOpacity style={styles.noteBtn} onPress={onAddInstruction} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Pressable
+            style={({ pressed }) => [styles.noteBtn, { opacity: pressed ? 0.7 : 1 }]}
+            onPress={onAddInstruction}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Text style={styles.noteText} numberOfLines={1}>{line.notes.trim()}</Text>
             <Text style={styles.editHint}>Edit</Text>
-          </TouchableOpacity>
+          </Pressable>
         ) : (
-          <TouchableOpacity style={styles.addNoteBtn} onPress={onAddInstruction} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Pressable
+            style={({ pressed }) => [styles.addNoteBtn, { opacity: pressed ? 0.7 : 1 }]}
+            onPress={onAddInstruction}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Text style={styles.addNoteText}>Add instruction</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
         {onRemove ? (
-          <TouchableOpacity
-            style={styles.removeBtn}
+          <Pressable
+            style={({ pressed }) => [styles.removeBtn, { opacity: pressed ? 0.7 : 1 }]}
             onPress={() => onRemove(line.cartId)}
             accessibilityLabel="Remove item"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Text style={styles.removeBtnText}>Delete</Text>
-          </TouchableOpacity>
+          </Pressable>
         ) : null}
         <View style={styles.qtyRow}>
-          <TouchableOpacity style={styles.qtyBtn} onPress={handleMinus} accessibilityLabel="Decrease quantity" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Pressable
+            style={({ pressed }) => [styles.qtyBtn, { opacity: pressed ? 0.7 : 1 }]}
+            onPress={handleMinus}
+            accessibilityLabel="Decrease quantity"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Text style={styles.qtyBtnText}>−</Text>
-          </TouchableOpacity>
+          </Pressable>
           <Text style={styles.qtyValue}>{line.quantity}</Text>
-          <TouchableOpacity
-            style={styles.qtyBtn}
+          <Pressable
+            style={({ pressed }) => [styles.qtyBtn, { opacity: pressed ? 0.7 : 1 }]}
             onPress={() => onUpdateQuantity(line.cartId, 1)}
             accessibilityLabel="Increase quantity"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Text style={styles.qtyBtnText}>+</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     </View>

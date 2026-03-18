@@ -480,3 +480,50 @@ export interface BillExtraChargeRemovePayload {
   staffId: string;
   reason: string;
 }
+
+// ----- Settled / Billing History -----
+export interface SettledBill {
+  id: string;
+  billInvoiceNumber?: number;
+  invoiceNumber?: string;
+  areaType?: string;
+  tableName?: string;
+  tableId?: string;
+  paidByName?: string;
+  paymentMethod?: string | null;
+  grandTotal?: number;
+  payable?: number;
+  subtotal?: number;
+  totalTax?: number;
+  cgstTotal?: number;
+  sgstTotal?: number;
+  serviceCharge?: number;
+  deliveryCharge?: number;
+  containerCharge?: number;
+  tipTotal?: number;
+  discountTotal?: number;
+  roundOff?: number;
+  status?: string;
+  createdAt?: number;
+  items?: BillPreviewItem[];
+  splitModes?: BillPaySplitItem[];
+  isSplit?: boolean;
+  splitType?: string;
+}
+
+export interface SettledBillsResponse {
+  bills: SettledBill[];
+  totalPages: number;
+  currentPage: number;
+  totalCount?: number;
+}
+
+export interface BillingHistoryFilters {
+  invoiceNumber?: string;
+  tableName?: string;
+  customerName?: string;
+  paymentMethod?: string;
+  areaType?: string;
+  minAmount?: number;
+  maxAmount?: number;
+}

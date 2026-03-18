@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
 
 interface KotReprintConfirmModalProps {
   visible: boolean;
@@ -27,16 +27,24 @@ export default function KotReprintConfirmModal({
             Do you want to reprint {kotNumber != null ? `KOT #${kotNumber}` : 'this KOT'}?
           </Text>
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={isReprinting}>
+            <Pressable
+              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={onClose}
+              disabled={isReprinting}
+            >
               <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.confirmBtn, isReprinting && styles.btnDisabled]}
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.confirmBtn,
+                isReprinting && styles.btnDisabled,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={onConfirm}
               disabled={isReprinting}
             >
               <Text style={styles.confirmBtnText}>{isReprinting ? 'Reprinting…' : 'Reprint'}</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </View>

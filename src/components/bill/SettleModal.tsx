@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   TextInput,
   StyleSheet,
@@ -165,35 +165,46 @@ export default function SettleModal({
           {step === 'select' && (
             <>
               <Text style={styles.title}>Settle — ₹{payable.toFixed(2)}</Text>
-              <TouchableOpacity
-                style={styles.splitPaymentBtn}
+              <Pressable
+                style={({ pressed }) => [styles.splitPaymentBtn, { opacity: pressed ? 0.7 : 1 }]}
                 onPress={() => setStep('split')}
               >
                 <Text style={styles.splitPaymentBtnText}>Split payment</Text>
-              </TouchableOpacity>
+              </Pressable>
               <Text style={styles.orLabel}>Or select a single mode</Text>
               <ScrollView style={styles.modesList}>
                 {selectableModes.map(m => (
-                  <TouchableOpacity
+                  <Pressable
                     key={m.id}
-                    style={[styles.modeBtn, selectedMode === m.name && styles.modeBtnActive]}
+                    style={({ pressed }) => [
+                      styles.modeBtn,
+                      selectedMode === m.name && styles.modeBtnActive,
+                      { opacity: pressed ? 0.7 : 1 },
+                    ]}
                     onPress={() => setSelectedMode(m.name as BillPayModeBackend)}
                   >
                     <Text style={styles.modeBtnText}>{m.name}</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 ))}
               </ScrollView>
               <View style={styles.actions}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+                <Pressable
+                  style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+                  onPress={onClose}
+                >
                   <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.confirmBtn, (!selectedMode || paying) && styles.btnDisabled]}
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.confirmBtn,
+                    (!selectedMode || paying) && styles.btnDisabled,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
                   onPress={() => selectedMode && setStep('confirm')}
                   disabled={!selectedMode || paying}
                 >
                   <Text style={styles.confirmBtnText}>Next</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </>
           )}
@@ -205,16 +216,27 @@ export default function SettleModal({
                 Pay ₹{payable.toFixed(2)} with {selectedMode}?
               </Text>
               <View style={styles.actions}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => setStep('select')}>
+                <Pressable
+                  style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+                  onPress={() => setStep('select')}
+                >
                   <Text style={styles.cancelBtnText}>Back</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.confirmBtn, paying && styles.btnDisabled]}
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.confirmBtn,
+                    paying && styles.btnDisabled,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
                   onPress={handleSinglePay}
                   disabled={paying}
                 >
-                  {paying ? <ActivityIndicator color="#0F172A" size="small" /> : <Text style={styles.confirmBtnText}>Confirm pay</Text>}
-                </TouchableOpacity>
+                  {paying ? (
+                    <ActivityIndicator color="#0F172A" size="small" />
+                  ) : (
+                    <Text style={styles.confirmBtnText}>Confirm pay</Text>
+                  )}
+                </Pressable>
               </View>
             </>
           )}
@@ -229,13 +251,17 @@ export default function SettleModal({
                   <View key={i} style={styles.splitRow}>
                     <ScrollView horizontal style={styles.modePicker} showsHorizontalScrollIndicator={false}>
                       {selectableModes.map(m => (
-                        <TouchableOpacity
+                        <Pressable
                           key={m.id}
-                          style={[styles.modeChip, row.mode === m.name && styles.modeChipActive]}
+                          style={({ pressed }) => [
+                            styles.modeChip,
+                            row.mode === m.name && styles.modeChipActive,
+                            { opacity: pressed ? 0.7 : 1 },
+                          ]}
                           onPress={() => updateSplitRow(i, { mode: m.name })}
                         >
                           <Text style={styles.modeChipText}>{m.name}</Text>
-                        </TouchableOpacity>
+                        </Pressable>
                       ))}
                     </ScrollView>
                     <TextInput
@@ -250,25 +276,38 @@ export default function SettleModal({
                       placeholderTextColor="#64748B"
                     />
                     {splitRows.length > 1 && (
-                      <TouchableOpacity style={styles.removeRowBtn} onPress={() => removeSplitRow(i)}>
+                      <Pressable
+                        style={({ pressed }) => [styles.removeRowBtn, { opacity: pressed ? 0.7 : 1 }]}
+                        onPress={() => removeSplitRow(i)}
+                      >
                         <Text style={styles.removeRowText}>−</Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     )}
                   </View>
                 ))}
               </ScrollView>
-              <TouchableOpacity style={styles.addRowBtn} onPress={addSplitRow}>
+              <Pressable
+                style={({ pressed }) => [styles.addRowBtn, { opacity: pressed ? 0.7 : 1 }]}
+                onPress={addSplitRow}
+              >
                 <Text style={styles.addRowText}>+ Add allocation</Text>
-              </TouchableOpacity>
+              </Pressable>
               <Text style={[styles.totalLine, !splitTotalValid && styles.totalLineError]}>
                 Total: ₹{splitTotal.toFixed(2)} {!splitTotalValid && `(must be ₹${payable.toFixed(2)})`}
               </Text>
               <View style={styles.actions}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => setStep('select')}>
+                <Pressable
+                  style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+                  onPress={() => setStep('select')}
+                >
                   <Text style={styles.cancelBtnText}>Back</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.confirmBtn, (!splitTotalValid || splitPayload.length === 0 || paying) && styles.btnDisabled]}
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.confirmBtn,
+                    (!splitTotalValid || splitPayload.length === 0 || paying) && styles.btnDisabled,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
                   onPress={handleSplitPay}
                   disabled={!splitTotalValid || splitPayload.length === 0 || paying}
                 >
@@ -277,7 +316,7 @@ export default function SettleModal({
                   ) : (
                     <Text style={styles.confirmBtnText}>Confirm split</Text>
                   )}
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </>
           )}

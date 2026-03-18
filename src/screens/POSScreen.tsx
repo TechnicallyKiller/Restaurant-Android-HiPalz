@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   FlatList,
   ActivityIndicator,
@@ -41,6 +41,7 @@ import SearchInput from '../components/SearchInput';
 import TableActionsModal from '../components/tables/TableActionsModal';
 import KotTransferModal from '../components/pos/KotTransferModal';
 import KotDeleteModal from '../components/pos/KotDeleteModal';
+import BillGeneratedWarningModal from '../components/tables/BillGeneratedWarningModal';
 import Sidebar from '../components/Sidebar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
@@ -105,6 +106,8 @@ const POSScreen = ({ navigation }: Props) => {
   const [showAddMoreItems, setShowAddMoreItems] = useState(false);
   const [addMoreFromKotVisible, setAddMoreFromKotVisible] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [postKotRefreshing, setPostKotRefreshing] = useState(false);
+  const [genBillWarningVisible, setGenBillWarningVisible] = useState(false);
 
   const { grouped, refetch: refetchTables } = useAreasAndTables();
   const allTablesForTransfer = React.useMemo(
@@ -117,27 +120,23 @@ const POSScreen = ({ navigation }: Props) => {
   const cartCount = cartItems.reduce((s, c) => s + c.quantity, 0);
 
   const kotCount = kots?.length ?? 0;
-  const isEmptyTable = kots.length === 0 && cartItems.length === 0;
-  const showCartTab = true;
-  const showBillTab = kotCount > 0;
+  const isEmptyTable = kotCount === 0 && cartItems.length === 0;
   const billEntry = currentTable ? getBillEntry(currentTable.id) : null;
-  const billSplit = billEntry?.bill?.isSplit ?? false;
+  const hasBill = !!billEntry?.bill?.id;
+  const showBillTab = kotCount > 0 || hasBill;
+
+
+
+
+  // Removed aggressive tab-flipping useEffect to prevent race conditions during order placement.
+  // Instead, we trust the manual and automatic tab switches.
 
   useEffect(() => {
-    refetchKots();
-  }, [currentTable?.id, refetchKots]);
-
-
-  useEffect(() => {
-    if (activeTab === 'bill' && !showBillTab) setActiveTab(showCartTab ? 'cart' : 'kot');
-  }, [activeTab, showBillTab, showCartTab, setActiveTab]);
-
-  useEffect(() => {
-    if (activeTab === 'bill' && currentTable) {
+    if (activeTab === 'bill' && currentTable && kotCount > 0) {
       if (hasBillForTable(currentTable.id)) refetchBill();
       else fetchPreview();
     }
-  }, [activeTab, currentTable?.id, hasBillForTable, refetchBill, fetchPreview]);
+  }, [activeTab, currentTable?.id, kotCount, hasBillForTable, refetchBill, fetchPreview]);
 
   const handleAddToCart = (config: CartConfig, quantity: number) => {
     if (!currentTable || !customiseItem) return;
@@ -223,9 +222,20 @@ const POSScreen = ({ navigation }: Props) => {
     }
     const result = await place();
     if (result.success) {
-      await refetchKots();
+      setPostKotRefreshing(true);
+      try {
+        await Promise.all([refetchKots(), refetchTables()]);
+      } finally {
+        setPostKotRefreshing(false);
+      }
       setCartModalVisible(false);
-      setActiveTab('kot');
+      const data = await generateBill();
+      if (data) {
+        setGenBillWarningVisible(true);
+        // Already fetched by generateBill hook which calls setBillForTable
+      } else {
+        setActiveTab('kot');
+      }
     } else {
       Alert.alert('Order failed', result.error ?? 'Could not place order.');
     }
@@ -250,9 +260,12 @@ const POSScreen = ({ navigation }: Props) => {
     return (
       <View style={styles.centered}>
         <Text style={styles.noTable}>No table selected</Text>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <Pressable
+          style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.7 : 1 }]}
+          onPress={() => navigation.goBack()}
+        >
           <Text style={styles.backBtnText}>Back to Tables</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   }
@@ -267,17 +280,21 @@ const POSScreen = ({ navigation }: Props) => {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity
+          <Pressable
             onPress={() => setSidebarOpen(true)}
-            style={styles.burgerBtn}
+            style={({ pressed }) => [styles.burgerBtn, { opacity: pressed ? 0.7 : 1 }]}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Open menu"
           >
             <Text style={styles.burgerIcon}>☰</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          </Pressable>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.7 : 1 }]}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
             <Text style={styles.backText}>← Switch table</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
         <View style={styles.headerCenter}>
           <Text style={styles.tableName} numberOfLines={1}>{currentTable.name}</Text>
@@ -290,13 +307,13 @@ const POSScreen = ({ navigation }: Props) => {
             </View>
           ) : null}
         </View>
-        <TouchableOpacity
-          style={styles.tableActionsBtn}
+        <Pressable
+          style={({ pressed }) => [styles.tableActionsBtn, { opacity: pressed ? 0.7 : 1 }]}
           onPress={() => setTableActionsVisible(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Text style={styles.tableActionsBtnText}>Table actions</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <Sidebar
@@ -313,11 +330,11 @@ const POSScreen = ({ navigation }: Props) => {
         onClose={() => setTableActionsVisible(false)}
         currentTable={currentTable}
         grouped={grouped}
-        onSwitchTable={() => navigation.navigate('Tables')}
+        onSwitchTable={() => navigation.navigate('MainTabs')}
         onTransferOrMergeSuccess={() => {
           refetchKots();
           refetchTables();
-          navigation.navigate('Tables');
+          navigation.navigate('MainTabs');
         }}
       />
 
@@ -332,7 +349,7 @@ const POSScreen = ({ navigation }: Props) => {
         onSuccess={() => {
           refetchKots();
           refetchTables();
-          navigation.navigate('Tables');
+          navigation.navigate('MainTabs');
         }}
       />
       <KotDeleteModal
@@ -349,9 +366,14 @@ const POSScreen = ({ navigation }: Props) => {
 
       <View style={styles.tabRow}>
         {tabs.map(({ key, label }) => (
-          <TouchableOpacity
+          <Pressable
             key={key}
-            style={[styles.tab, activeTab === key && styles.tabActive, key === 'kot' && styles.tabWithBadge]}
+            style={({ pressed }) => [
+              styles.tab,
+              activeTab === key && styles.tabActive,
+              key === 'kot' && styles.tabWithBadge,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}
             onPress={() => setActiveTab(key)}
           >
             <Text style={[styles.tabText, activeTab === key && styles.tabTextActive]}>{label}</Text>
@@ -360,7 +382,7 @@ const POSScreen = ({ navigation }: Props) => {
                 <Text style={styles.kotBadgeText}>{kotCount}</Text>
               </View>
             )}
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
 
@@ -379,28 +401,39 @@ const POSScreen = ({ navigation }: Props) => {
                 {hasKot && (
                   <View style={styles.addMoreHeader}>
                     <Text style={styles.addMoreHeaderTitle}>Add more items</Text>
-                    <TouchableOpacity onPress={() => setShowAddMoreItems(false)}>
+                    <Pressable
+                      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                      onPress={() => setShowAddMoreItems(false)}
+                    >
                       <Text style={styles.addMoreHeaderDone}>Done</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 )}
                 <View style={styles.cartTabContent}>
                   <View style={styles.categoryListWrap}>
                     <ScrollView style={styles.categoryList} showsVerticalScrollIndicator={false}>
-                      <TouchableOpacity
-                        style={[styles.categoryChip, !selectedCategoryId && styles.categoryChipActive]}
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.categoryChip,
+                          !selectedCategoryId && styles.categoryChipActive,
+                          { opacity: pressed ? 0.7 : 1 },
+                        ]}
                         onPress={() => selectCategory(null)}
                       >
                         <Text style={[styles.categoryChipText, !selectedCategoryId && styles.categoryChipTextActive]} numberOfLines={1}>All</Text>
-                      </TouchableOpacity>
+                      </Pressable>
                       {categories.map(cat => (
-                        <TouchableOpacity
+                        <Pressable
                           key={cat.id}
-                          style={[styles.categoryChip, selectedCategoryId === cat.id && styles.categoryChipActive]}
+                          style={({ pressed }) => [
+                            styles.categoryChip,
+                            selectedCategoryId === cat.id && styles.categoryChipActive,
+                            { opacity: pressed ? 0.7 : 1 },
+                          ]}
                           onPress={() => selectCategory(cat.id)}
                         >
                           <Text style={[styles.categoryChipText, selectedCategoryId === cat.id && styles.categoryChipTextActive]} numberOfLines={2}>{cat.name}</Text>
-                        </TouchableOpacity>
+                        </Pressable>
                       ))}
                     </ScrollView>
                   </View>
@@ -463,28 +496,31 @@ const POSScreen = ({ navigation }: Props) => {
                   </Text>
                 )}
                 {cartItems.length > 0 && (
-                  <TouchableOpacity
-                    style={styles.placeOrderBtn}
+                  <Pressable
+                    style={({ pressed }) => [styles.placeOrderBtn, { opacity: pressed ? 0.7 : 1 }]}
                     onPress={() => navigation.navigate('LiveCart')}
                   >
                     <Text style={styles.placeOrderBtnText}>Show Cart</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 )}
-                <TouchableOpacity style={styles.addMoreItemBtn} onPress={() => setShowAddMoreItems(true)}>
+                <Pressable
+                  style={({ pressed }) => [styles.addMoreItemBtn, { opacity: pressed ? 0.7 : 1 }]}
+                  onPress={() => setShowAddMoreItems(true)}
+                >
                   <Text style={styles.addMoreItemBtnText}>Add more item</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             ) : cartItems.length > 0 ? (
               <View style={styles.cartBar}>
                 <Text style={styles.cartSummary}>
                   {cartCount} {cartCount === 1 ? 'item' : 'items'} · ₹{cartTotal.toFixed(0)}
                 </Text>
-                <TouchableOpacity
-                  style={styles.placeOrderBtn}
+                <Pressable
+                  style={({ pressed }) => [styles.placeOrderBtn, { opacity: pressed ? 0.7 : 1 }]}
                   onPress={() => navigation.navigate('LiveCart')}
                 >
                   <Text style={styles.placeOrderBtnText}>Show Cart</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             ) : null}
           </>
@@ -494,20 +530,28 @@ const POSScreen = ({ navigation }: Props) => {
       {activeTab === 'kot' && (
         <>
           <View style={styles.kotToolbar}>
-            <TouchableOpacity
-              style={[styles.kotToolbarBtn, kots.length === 0 && styles.kotToolbarBtnDisabled]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.kotToolbarBtn,
+                kots.length === 0 && styles.kotToolbarBtnDisabled,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={() => setKotTransferVisible(true)}
               disabled={kots.length === 0}
             >
               <Text style={styles.kotToolbarBtnText}>Item transfer</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.kotToolbarBtn, kots.length === 0 && styles.kotToolbarBtnDisabled]}
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.kotToolbarBtn,
+                kots.length === 0 && styles.kotToolbarBtnDisabled,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={() => setKotDeleteVisible(true)}
               disabled={kots.length === 0}
             >
               <Text style={styles.kotToolbarBtnText}>Delete items</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
           <ScrollView style={styles.kotList} contentContainerStyle={kots.length > 0 ? styles.kotListWithAddMore : undefined}>
             {kotsLoading ? (
@@ -527,6 +571,30 @@ const POSScreen = ({ navigation }: Props) => {
               ))
             )}
           </ScrollView>
+          {kotCount > 0 && (
+            <View style={styles.kotTabFooter}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.generateBillBtn,
+                  isGeneratingBill && styles.btnDisabled,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
+                onPress={async () => {
+                  const data = await generateBill();
+                  if (data) {
+                    setGenBillWarningVisible(true);
+                  }
+                }}
+                disabled={isGeneratingBill}
+              >
+                {isGeneratingBill ? (
+                  <ActivityIndicator color={colors.background} size="small" />
+                ) : (
+                  <Text style={styles.generateBillBtnText}>Generate Bill</Text>
+                )}
+              </Pressable>
+            </View>
+          )}
         </>
       )}
 
@@ -538,15 +606,29 @@ const POSScreen = ({ navigation }: Props) => {
               <Text style={styles.billLoadingText}>Loading bill…</Text>
             </View>
           ) : !billForTab ? (
-            <View style={styles.billEmpty}>
-              <Text style={styles.billEmptyText}>Generate the bill to see the bill summary and settle.</Text>
-              <TouchableOpacity
-                style={styles.billNavBtn}
-                onPress={() => navigation.navigate('Bill')}
-              >
-                <Text style={styles.billNavBtnText}>Open Bill</Text>
-              </TouchableOpacity>
-            </View>
+             <View style={styles.billEmpty}>
+               <Text style={styles.billEmptyText}>Generate the bill to see the bill summary and settle.</Text>
+               <Pressable
+                 style={({ pressed }) => [
+                   styles.billNavBtn,
+                   isGeneratingBill && styles.btnDisabled,
+                   { opacity: pressed ? 0.7 : 1 }
+                 ]}
+                 onPress={async () => {
+                   const data = await generateBill();
+                   if (data) {
+                     setGenBillWarningVisible(true);
+                   }
+                 }}
+                 disabled={isGeneratingBill}
+               >
+                 {isGeneratingBill ? (
+                   <ActivityIndicator color={colors.background} size="small" />
+                 ) : (
+                   <Text style={styles.billNavBtnText}>Generate Bill</Text>
+                 )}
+               </Pressable>
+             </View>
           ) : (
             <ScrollView style={styles.billScroll} contentContainerStyle={styles.billScrollContent}>
               {!billForTab.id && (
@@ -570,12 +652,12 @@ const POSScreen = ({ navigation }: Props) => {
           )}
           {billForTab && (
             <View style={styles.billTabFooter}>
-              <TouchableOpacity
-                style={styles.billNavBtn}
+              <Pressable
+                style={({ pressed }) => [styles.billNavBtn, { opacity: pressed ? 0.7 : 1 }]}
                 onPress={() => navigation.navigate('Bill')}
               >
                 <Text style={styles.billNavBtnText}>Open Bill →</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           )}
         </View>
@@ -644,25 +726,36 @@ const POSScreen = ({ navigation }: Props) => {
           <View style={styles.addItemsModal}>
             <View style={styles.addItemsModalHeader}>
               <Text style={styles.addItemsModalTitle}>Add items</Text>
-              <TouchableOpacity onPress={() => setAddItemsModalVisible(false)}>
+              <Pressable
+                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                onPress={() => setAddItemsModalVisible(false)}
+              >
                 <Text style={styles.addItemsModalClose}>Done</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
             <ScrollView horizontal style={styles.categories} showsHorizontalScrollIndicator={false}>
-              <TouchableOpacity
-                style={[styles.catChip, !selectedCategoryId && styles.catChipActive]}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.catChip,
+                  !selectedCategoryId && styles.catChipActive,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
                 onPress={() => selectCategory(null)}
               >
                 <Text style={styles.catChipText}>All</Text>
-              </TouchableOpacity>
+              </Pressable>
               {categories.map(cat => (
-                <TouchableOpacity
+                <Pressable
                   key={cat.id}
-                  style={[styles.catChip, selectedCategoryId === cat.id && styles.catChipActive]}
+                  style={({ pressed }) => [
+                    styles.catChip,
+                    selectedCategoryId === cat.id && styles.catChipActive,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
                   onPress={() => selectCategory(cat.id)}
                 >
                   <Text style={styles.catChipText}>{cat.name}</Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </ScrollView>
             {(isLoadingCategories || isLoadingItems) && filteredItems.length === 0 ? (
@@ -695,27 +788,38 @@ const POSScreen = ({ navigation }: Props) => {
           <View style={styles.addMoreKotModal}>
             <View style={styles.addMoreHeader}>
               <Text style={styles.addMoreHeaderTitle}>Add more items</Text>
-              <TouchableOpacity onPress={() => setAddMoreFromKotVisible(false)}>
+              <Pressable
+                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                onPress={() => setAddMoreFromKotVisible(false)}
+              >
                 <Text style={styles.addMoreHeaderDone}>Done</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
             <View style={styles.cartTabContent}>
               <View style={styles.categoryListWrap}>
                 <ScrollView style={styles.categoryList} showsVerticalScrollIndicator={false}>
-                  <TouchableOpacity
-                    style={[styles.categoryChip, !selectedCategoryId && styles.categoryChipActive]}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.categoryChip,
+                      !selectedCategoryId && styles.categoryChipActive,
+                      { opacity: pressed ? 0.7 : 1 },
+                    ]}
                     onPress={() => selectCategory(null)}
                   >
                     <Text style={[styles.categoryChipText, !selectedCategoryId && styles.categoryChipTextActive]} numberOfLines={1}>All</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                   {categories.map(cat => (
-                    <TouchableOpacity
+                    <Pressable
                       key={cat.id}
-                      style={[styles.categoryChip, selectedCategoryId === cat.id && styles.categoryChipActive]}
+                      style={({ pressed }) => [
+                        styles.categoryChip,
+                        selectedCategoryId === cat.id && styles.categoryChipActive,
+                        { opacity: pressed ? 0.7 : 1 },
+                      ]}
                       onPress={() => selectCategory(cat.id)}
                     >
                       <Text style={[styles.categoryChipText, selectedCategoryId === cat.id && styles.categoryChipTextActive]} numberOfLines={2}>{cat.name}</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </ScrollView>
               </View>
@@ -756,16 +860,31 @@ const POSScreen = ({ navigation }: Props) => {
       )}
 
       {cartItems.length > 0 && (activeTab === 'kot') && (
-        <TouchableOpacity
-          style={styles.globalCartBar}
+        <Pressable
+          style={({ pressed }) => [styles.globalCartBar, { opacity: pressed ? 0.8 : 1 }]}
           onPress={() => navigation.navigate('LiveCart')}
-          activeOpacity={0.8}
         >
           <Text style={styles.globalCartBarText}>
             Show cart · {cartCount} {cartCount === 1 ? 'item' : 'items'} · ₹{cartTotal.toFixed(0)}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       )}
+
+      {postKotRefreshing && (
+        <View style={styles.postKotOverlay}>
+          <ActivityIndicator size="large" color={colors.tertiary} />
+          <Text style={styles.postKotOverlayText}>Updating table…</Text>
+        </View>
+      )}
+
+      <BillGeneratedWarningModal
+        visible={genBillWarningVisible}
+        onClose={() => {
+          setGenBillWarningVisible(false);
+          setActiveTab('bill');
+        }}
+        actionType="generate"
+      />
     </SafeAreaView>
   );
 };
@@ -863,7 +982,7 @@ const styles = StyleSheet.create({
   addMoreHeaderDone: { color: colors.tertiary, fontWeight: '600', fontSize: 16 },
   addMorePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   addMorePlaceholderText: { color: colors.mutedForeground, textAlign: 'center', fontSize: 15 },
-  addMoreItemBtn: { ...neoButtonTertiary,width: '100%', paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' },
+  addMoreItemBtn: { ...neoButtonTertiary, width: '100%', paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' },
   addMoreItemBtnText: { color: colors.background, fontWeight: '700', fontSize: 16, textTransform: 'uppercase' as const },
   categoryListWrap: { width: 100, borderRightWidth: 3, borderRightColor: colors.brutalBorder, paddingVertical: 8 },
   categoryList: { paddingHorizontal: 8 },
@@ -886,7 +1005,32 @@ const styles = StyleSheet.create({
   kotToolbarBtnText: { color: colors.tertiary, fontWeight: '600', fontSize: 14, textTransform: 'uppercase' as const },
   kotToolbarBtnDisabled: { opacity: 0.5 },
   kotList: { flex: 1, padding: 16 },
-  kotListWithAddMore: { paddingBottom: 24 },
+  kotListWithAddMore: { paddingBottom: 80 },
+  kotTabFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    backgroundColor: colors.base100,
+    borderTopWidth: 3,
+    borderTopColor: colors.brutalBorder,
+    ...shadowBrutal,
+    zIndex: 10,
+  },
+  generateBillBtn: {
+    ...neoButtonTertiary,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  generateBillBtnText: {
+    color: colors.background,
+    fontWeight: '800',
+    fontSize: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
   addMoreKotModal: { flex: 1, backgroundColor: colors.background },
   globalCartBar: {
     position: 'absolute',
@@ -931,6 +1075,15 @@ const styles = StyleSheet.create({
   billTabFooter: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: colors.base100, borderTopWidth: 3, borderTopColor: colors.brutalBorder },
   billNavBtn: { ...neoButtonTertiary, paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center' },
   billNavBtnText: { color: colors.background, fontWeight: '700', textTransform: 'uppercase' as const },
+  btnDisabled: { opacity: 0.6 },
+  postKotOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(12, 10, 9, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  postKotOverlayText: { color: colors.foreground, marginTop: 12, fontSize: 14, fontWeight: '600' },
 });
 
 export default POSScreen;

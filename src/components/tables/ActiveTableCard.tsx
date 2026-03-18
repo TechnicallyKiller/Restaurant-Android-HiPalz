@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import type { Table, TableStatusType } from '../../api/types';
 import { colors, neoCard } from '../../theme/neoBrutalism';
 
@@ -42,9 +42,12 @@ export default function ActiveTableCard({ table, onClick }: ActiveTableCardProps
 
   if (onClick) {
     return (
-      <TouchableOpacity style={cardStyle} onPress={() => onClick(table)} activeOpacity={0.8}>
+      <Pressable
+        style={({ pressed }) => [...cardStyle, { opacity: pressed ? 0.7 : 1 }]}
+        onPress={() => onClick(table)}
+      >
         {content}
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 

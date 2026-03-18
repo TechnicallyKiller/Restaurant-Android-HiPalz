@@ -3,27 +3,27 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAreasAndTables, useInstancedBills } from '../hooks';
 import { useAuthStore } from '../store/authStore';
 import { useTableStore } from '../store/tableStore';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import type { Table } from '../api/types';
 import type { AreaWithTables } from '../hooks/useAreasAndTables';
+import { naturalCompare } from '../utils/naturalSort';
 import SearchInput from '../components/SearchInput';
 import ErrorFallback from '../components/ErrorFallback';
 import { colors, neoCard, neoButtonTertiary } from '../theme/neoBrutalism';
 import EmptyTablesModal from '../components/tables/EmptyTablesModal';
 import ActiveTableCard from '../components/tables/ActiveTableCard';
 import InstanceBillModal from '../components/tables/InstanceBillModal';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'Tables'>;
 
 /** Main list: only active (non-EMPTY) tables. */
 function filterActiveTables(grouped: AreaWithTables[]): AreaWithTables[] {
@@ -50,7 +50,8 @@ function filterGroupedBySearch(grouped: AreaWithTables[], query: string): AreaWi
     .filter(g => g.tables.length > 0);
 }
 
-const TablesScreen = ({ navigation }: Props) => {
+const TablesScreen = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const outletId = useAuthStore(s => s.user?.outletId ?? '');
   const { grouped, isLoading, error, refetch } = useAreasAndTables({ refetchIntervalMs: 10000 });
   const { instances = [], refetch: refetchInstances } = useInstancedBills(outletId);
@@ -64,6 +65,15 @@ const TablesScreen = ({ navigation }: Props) => {
   const filteredGrouped = useMemo(
     () => filterGroupedBySearch(activeGrouped, searchQuery),
     [activeGrouped, searchQuery],
+  );
+
+  // Natural-sort instances by tableName
+  const sortedInstances = useMemo(
+    () =>
+      [...(instances ?? [])].sort((a, b) =>
+        naturalCompare(a.tableName ?? '', b.tableName ?? ''),
+      ),
+    [instances],
   );
 
   const onRefresh = async () => {
@@ -101,6 +111,17 @@ const TablesScreen = ({ navigation }: Props) => {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.headerRow}>
         <Text style={styles.header}>Tables</Text>
+        <Pressable
+          style={({ pressed }) => [styles.refreshBtn, { opacity: pressed ? 0.7 : 1 }]}
+          onPress={onRefresh}
+          disabled={refreshing}
+        >
+          {refreshing ? (
+            <ActivityIndicator size="small" color={colors.tertiary} />
+          ) : (
+            <Text style={styles.refreshBtnText}>↻</Text>
+          )}
+        </Pressable>
       </View>
       <ScrollView
         style={styles.scroll}
@@ -109,25 +130,25 @@ const TablesScreen = ({ navigation }: Props) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.tertiary} />
         }
       >
-      {(instances ?? []).length > 0 && (
+      {sortedInstances.length > 0 && (
         <View style={styles.instancesSection}>
           <Text style={styles.instancesSectionTitle}>Table instances</Text>
           <Text style={styles.instancesSectionSubtitle}>
             Tables freed for new orders with an open bill. Click to continue billing.
           </Text>
-          {(instances ?? []).map((inst, index) => {
+          {sortedInstances.map((inst, index) => {
             const billId = inst.id ?? inst.billId ?? '';
             return (
-              <TouchableOpacity
+              <Pressable
                 key={billId || `instance-${index}`}
-                style={styles.instanceCard}
+                style={({ pressed }) => [styles.instanceCard, { opacity: pressed ? 0.7 : 1 }]}
                 onPress={() => billId && setInstanceBillId(billId)}
               >
                 <Text style={styles.instanceCardTitle}>{inst.tableName ?? 'Table'}</Text>
                 <Text style={styles.instanceCardSub}>
                   {inst.captainName ? `${inst.captainName} · ` : ''}₹{inst.payable?.toFixed(0) ?? '0'}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             );
           })}
         </View>
@@ -165,12 +186,12 @@ const TablesScreen = ({ navigation }: Props) => {
       </ScrollView>
 
       <View style={styles.fixedBottom}>
-        <TouchableOpacity
-          style={styles.startTableBtn}
+        <Pressable
+          style={({ pressed }) => [styles.startTableBtn, { opacity: pressed ? 0.7 : 1 }]}
           onPress={() => setStartTableModalOpen(true)}
         >
           <Text style={styles.startTableBtnText}>Start table</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <EmptyTablesModal
@@ -221,9 +242,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   header: { fontSize: 24, fontWeight: '800', color: colors.foreground },
+  refreshBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.base200,
+    borderWidth: 3,
+    borderColor: colors.brutalBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  refreshBtnText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.tertiary,
+  },
   startTableBtn: startBtnStyle,
   startTableBtnText: { color: colors.background, fontWeight: '700', fontSize: 16, textTransform: 'uppercase' as const, letterSpacing: 1 },
   instancesSection: { marginBottom: 16 },

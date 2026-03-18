@@ -10,3 +10,4 @@ export {
   usePaymentModes,
 } from './useBill';
 export { useInstancedBills } from './useInstancedBills';
+export { useBillingHistory } from './useBillingHistory';

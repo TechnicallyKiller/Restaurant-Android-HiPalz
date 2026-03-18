@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -28,57 +28,61 @@ const LoginScreen = ({ navigation }: Props) => {
     if (!trimmed || !password) return;
     const result = await login(trimmed, password);
     if (result.success) {
-      navigation.replace('Tables');
+      navigation.replace('MainTabs');
     }
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.card}>
-        <HipalzLogo showIcon />
-        <Text style={styles.subtitle}>Staff sign in</Text>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.card}>
+          <HipalzLogo showIcon />
+          <Text style={styles.subtitle}>Staff sign in</Text>
 
-        {error ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
+          {error ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
-        <LoginInput
-          label="Phone"
-          value={phone || '9896325874'}
-          onChangeText={setPhone}
-          placeholder="Phone"
-          keyboardType="phone-pad"
-          autoCapitalize="none"
-          editable={!isLoading}
-        />
-        <LoginInput
-          label="Password"
-          value={password || '5555'}
-          onChangeText={setPassword}
-          placeholder="Password"
-          secureTextEntry
-          editable={!isLoading}
-        />
+          <LoginInput
+            label="Phone"
+            value={phone || '6863914480'}
+            onChangeText={setPhone}
+            placeholder="Phone"
+            keyboardType="phone-pad"
+            autoCapitalize="none"
+            editable={!isLoading}
+          />
+          <LoginInput
+            label="Password"
+            value={password || '4480'}
+            onChangeText={setPassword}
+            placeholder="Password"
+            secureTextEntry
+            editable={!isLoading}
+          />
 
-        <TouchableOpacity
-          style={[styles.button, isLoading && styles.buttonDisabled]}
-          onPress={handleSignIn}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <Text style={styles.buttonText}>Signing In...</Text>
-          ) : (
-            <Text style={styles.buttonText}>SIGN IN</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              isLoading && styles.buttonDisabled,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}
+            onPress={handleSignIn}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Text style={styles.buttonText}>Signing In...</Text>
+            ) : (
+              <Text style={styles.buttonText}>SIGN IN</Text>
+            )}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

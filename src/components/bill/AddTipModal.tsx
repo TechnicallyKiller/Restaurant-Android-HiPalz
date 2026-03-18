@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   StyleSheet,
   ActivityIndicator,
@@ -82,9 +82,12 @@ export default function AddTipModal({
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>Add tip</Text>
-            <TouchableOpacity onPress={onClose}>
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
               <Text style={styles.closeText}>Close</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {currentTipTotal > 0 && (
@@ -106,13 +109,17 @@ export default function AddTipModal({
               <Text style={styles.label}>Remove tip — reason</Text>
               <View style={styles.reasonChips}>
                 {PREDEFINED_REASONS.map(r => (
-                  <TouchableOpacity
+                  <Pressable
                     key={r}
-                    style={[styles.chip, removeReason === r && styles.chipActive]}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      removeReason === r && styles.chipActive,
+                      { opacity: pressed ? 0.7 : 1 },
+                    ]}
                     onPress={() => setRemoveReason(r)}
                   >
                     <Text style={styles.chipText}>{r}</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 ))}
               </View>
               <TextInput
@@ -126,12 +133,19 @@ export default function AddTipModal({
           )}
 
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+            <Pressable
+              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={onClose}
+            >
               <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
+            </Pressable>
             {currentTipTotal > 0 && (
-              <TouchableOpacity
-                style={[styles.removeBtn, (!removeReason.trim() || removing) && styles.btnDisabled]}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.removeBtn,
+                  (!removeReason.trim() || removing) && styles.btnDisabled,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
                 onPress={handleRemove}
                 disabled={!removeReason.trim() || removing}
               >
@@ -140,10 +154,14 @@ export default function AddTipModal({
                 ) : (
                   <Text style={styles.removeBtnText}>Remove tip</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             )}
-            <TouchableOpacity
-              style={[styles.addBtn, adding && styles.btnDisabled]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.addBtn,
+                adding && styles.btnDisabled,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={handleAdd}
               disabled={adding}
             >
@@ -152,7 +170,7 @@ export default function AddTipModal({
               ) : (
                 <Text style={styles.addBtnText}>Add</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </View>

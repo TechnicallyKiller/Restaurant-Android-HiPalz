@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   TextInput,
   StyleSheet,
@@ -79,7 +79,7 @@ export default function SplitBillModal({
       Alert.alert('Invalid split', 'Each split must have at least one item.');
       return;
     }
-    const variants: { billItemIds: string[] }[] = Array.from({ length: variantCount }, () => []);
+    const variants: { billItemIds: string[] }[] = Array.from({ length: variantCount }, () => ({ billItemIds: [] }));
     itemAssignments.forEach((splitIdx, i) => {
       const itemId = items[i]?.id;
       if (itemId && splitIdx >= 0 && splitIdx < variantCount) {
@@ -113,22 +113,35 @@ export default function SplitBillModal({
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>Split bill</Text>
-            <TouchableOpacity onPress={onClose}><Text style={styles.closeText}>Close</Text></TouchableOpacity>
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Text style={styles.closeText}>Close</Text>
+            </Pressable>
           </View>
 
           <View style={styles.tabRow}>
-            <TouchableOpacity
-              style={[styles.tabBtn, tab === 'percentage' && styles.tabBtnActive]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.tabBtn,
+                tab === 'percentage' && styles.tabBtnActive,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={() => setTab('percentage')}
             >
               <Text style={styles.tabBtnText}>By percentage</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tabBtn, tab === 'items' && styles.tabBtnActive]}
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.tabBtn,
+                tab === 'items' && styles.tabBtnActive,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={() => setTab('items')}
             >
               <Text style={styles.tabBtnText}>By items</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {tab === 'percentage' && (
@@ -165,13 +178,21 @@ export default function SplitBillModal({
               <Text style={[styles.hint, !validPct && styles.hintError]}>
                 Total: {totalPct.toFixed(1)}%
               </Text>
-              <TouchableOpacity
-                style={[styles.primaryBtn, (!validPct || loading) && styles.btnDisabled]}
+               <Pressable
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  (!validPct || loading) && styles.btnDisabled,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
                 onPress={handleSplitByPercentage}
                 disabled={!validPct || loading}
               >
-                {loading ? <ActivityIndicator color="#0F172A" size="small" /> : <Text style={styles.primaryBtnText}>Split by percentage</Text>}
-              </TouchableOpacity>
+                {loading ? (
+                  <ActivityIndicator color="#0F172A" size="small" />
+                ) : (
+                  <Text style={styles.primaryBtnText}>Split by percentage</Text>
+                )}
+              </Pressable>
             </>
           )}
 
@@ -191,9 +212,13 @@ export default function SplitBillModal({
                     <Text style={styles.itemName} numberOfLines={1}>{item.itemName} × {item.quantity}</Text>
                     <View style={styles.splitPicker}>
                       {Array.from({ length: variantCount }, (_, s) => (
-                        <TouchableOpacity
+                        <Pressable
                           key={s}
-                          style={[styles.splitOpt, (itemAssignments[i] ?? 0) === s && styles.splitOptActive]}
+                          style={({ pressed }) => [
+                            styles.splitOpt,
+                            (itemAssignments[i] ?? 0) === s && styles.splitOptActive,
+                            { opacity: pressed ? 0.7 : 1 },
+                          ]}
                           onPress={() => {
                             setItemAssignments(prev => {
                               const next = [...prev];
@@ -203,25 +228,36 @@ export default function SplitBillModal({
                           }}
                         >
                           <Text style={styles.splitOptText}>{s + 1}</Text>
-                        </TouchableOpacity>
+                        </Pressable>
                       ))}
                     </View>
                   </View>
                 ))}
               </ScrollView>
-              <TouchableOpacity
-                style={[styles.primaryBtn, (!byItemsValid() || loading) && styles.btnDisabled]}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  (!byItemsValid() || loading) && styles.btnDisabled,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
                 onPress={handleSplitByItems}
                 disabled={!byItemsValid() || loading}
               >
-                {loading ? <ActivityIndicator color="#0F172A" size="small" /> : <Text style={styles.primaryBtnText}>Split by items</Text>}
-              </TouchableOpacity>
+                {loading ? (
+                  <ActivityIndicator color="#0F172A" size="small" />
+                ) : (
+                  <Text style={styles.primaryBtnText}>Split by items</Text>
+                )}
+              </Pressable>
             </>
           )}
 
-          <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+          <Pressable
+            style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+            onPress={onClose}
+          >
             <Text style={styles.cancelBtnText}>Cancel</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     </Modal>

@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   TextInput,
   StyleSheet,
@@ -113,9 +113,12 @@ export default function KotDeleteModal({
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>Delete KOT items</Text>
-            <TouchableOpacity onPress={handleClose}>
+            <Pressable
+              onPress={handleClose}
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
               <Text style={styles.closeText}>Close</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
           <Text style={styles.hint}>Select items and quantity to remove. Reason is required.</Text>
           <ScrollView style={styles.scroll}>
@@ -125,19 +128,19 @@ export default function KotDeleteModal({
                 <View key={item.id} style={styles.itemRow}>
                   <Text style={styles.itemName}>{item.name} (max {item.quantity})</Text>
                   <View style={styles.qtyRow}>
-                    <TouchableOpacity
-                      style={styles.qtyBtn}
+                    <Pressable
+                      style={({ pressed }) => [styles.qtyBtn, { opacity: pressed ? 0.7 : 1 }]}
                       onPress={() => setQty(item.id, item.quantity, -1)}
                     >
                       <Text style={styles.qtyBtnText}>−</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                     <Text style={styles.qtyNum}>{qty}</Text>
-                    <TouchableOpacity
-                      style={styles.qtyBtn}
+                    <Pressable
+                      style={({ pressed }) => [styles.qtyBtn, { opacity: pressed ? 0.7 : 1 }]}
                       onPress={() => setQty(item.id, item.quantity, 1)}
                     >
                       <Text style={styles.qtyBtnText}>+</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 </View>
               );
@@ -152,13 +155,17 @@ export default function KotDeleteModal({
             placeholderTextColor="#64748B"
           />
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={handleClose}>
+            <Pressable
+              style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={handleClose}
+            >
               <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
                 styles.confirmBtn,
                 (totalSelected === 0 || !reason.trim() || loading) && styles.confirmBtnDisabled,
+                { opacity: pressed ? 0.7 : 1 },
               ]}
               onPress={handleConfirm}
               disabled={totalSelected === 0 || !reason.trim() || loading}
@@ -168,7 +175,7 @@ export default function KotDeleteModal({
               ) : (
                 <Text style={styles.confirmBtnText}>Delete items</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </View>

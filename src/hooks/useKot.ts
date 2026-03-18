@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { placeKot, getKotsByTable } from '../api/kotApi';
 import { buildPlaceOrderPayload } from '../api/cartUtils';
 import { getErrorMessage, handleApiError } from '../utils/errorHandling';
@@ -71,6 +71,10 @@ export function useKots(tableId: string | undefined, outletId: string) {
       setIsLoading(false);
     }
   }, [tableId, outletId]);
+
+  useEffect(() => {
+    fetchKots();
+  }, [fetchKots]);
 
   return { kots, isLoading, refetch: fetchKots };
 }

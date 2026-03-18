@@ -4,7 +4,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   StatusBar,
   ActivityIndicator,
   TextInput,
@@ -112,12 +112,16 @@ const WelcomeScreen = () => {
           <Text style={styles.statusText}>Server Not Found</Text>
           <Text style={styles.errorText}>{error}</Text>
           
-          <TouchableOpacity
-            style={[styles.button, btnStyle, { marginTop: 10, backgroundColor: colors.secondary }]}
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              btnStyle,
+              { marginTop: 10, backgroundColor: colors.secondary, opacity: pressed ? 0.7 : 1 },
+            ]}
             onPress={discoverServer}
           >
             <Text style={styles.buttonText}>Retry Auto-Scan</Text>
-          </TouchableOpacity>
+          </Pressable>
 
           <View style={styles.manualEntryContainer}>
             <Text style={styles.manualLabel}>- OR ENTER IP MANUALLY -</Text>
@@ -131,8 +135,12 @@ const WelcomeScreen = () => {
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <TouchableOpacity
-              style={[styles.button, btnStyle, { marginTop: 10 }]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                btnStyle,
+                { marginTop: 10, opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={testManualIp}
               disabled={isManualTesting}
             >
@@ -141,7 +149,7 @@ const WelcomeScreen = () => {
               ) : (
                 <Text style={styles.buttonText}>Connect Manually</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       );
@@ -155,9 +163,12 @@ const WelcomeScreen = () => {
         <Text style={styles.statusText}>Connected to Server</Text>
         <Text style={styles.ipLabel}>Server URL:</Text>
         <Text style={styles.ipText}>{serverUrl}</Text>
-        <TouchableOpacity style={[styles.button, btnStyle]} onPress={handleEnterTerminal}>
+        <Pressable
+          style={({ pressed }) => [styles.button, btnStyle, { opacity: pressed ? 0.7 : 1 }]}
+          onPress={handleEnterTerminal}
+        >
           <Text style={styles.buttonText}>Enter Terminal</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   };

@@ -3,11 +3,11 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
-  SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useErrorStore } from '../store/errorStore';
 import { useAuthStore } from '../store/authStore';
 import { resetToLogin, resetToTables } from '../navigation/rootNavigation';
@@ -89,11 +89,12 @@ export default function ErrorModal() {
                 <Text style={styles.message}>{message}</Text>
                 <View style={styles.actions}>
                   {actions.map(({ type, label }) => (
-                    <TouchableOpacity
+                    <Pressable
                       key={`${type}-${label}`}
-                      style={[
+                      style={({ pressed }) => [
                         styles.button,
                         type === 'reconnect' && styles.buttonPrimary,
+                        { opacity: pressed ? 0.7 : 1 },
                       ]}
                       onPress={() => handleAction(type)}
                     >
@@ -105,7 +106,7 @@ export default function ErrorModal() {
                       >
                         {label}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </View>
               </>

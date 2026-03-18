@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import type { CartItem } from '../../api/types';
 
 interface DecrementLineModalProps {
@@ -32,26 +32,29 @@ export default function DecrementLineModal({
 
   return (
     <Modal visible animationType="fade" transparent>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose} />
+      <Pressable style={styles.overlay} onPress={onClose} />
       <View style={styles.sheet}>
         <Text style={styles.title}>Multiple {itemName} found</Text>
         <Text style={styles.subtitle}>Select which one to remove</Text>
         <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
           {lines.map(line => (
-            <TouchableOpacity
+            <Pressable
               key={line.cartId}
-              style={styles.lineBtn}
+              style={({ pressed }) => [styles.lineBtn, { opacity: pressed ? 0.7 : 1 }]}
               onPress={() => { onSelectLine(line.cartId); onClose(); }}
             >
               <Text style={styles.lineDesc}>{lineDescription(line)}</Text>
               <Text style={styles.lineQty}>Qty: {line.quantity} · ₹{line.totalPrice.toFixed(0)}</Text>
               <Text style={styles.removeOneLabel}>Remove one</Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </ScrollView>
-        <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+        <Pressable
+          style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.7 : 1 }]}
+          onPress={onClose}
+        >
           <Text style={styles.cancelBtnText}>Cancel</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </Modal>
   );

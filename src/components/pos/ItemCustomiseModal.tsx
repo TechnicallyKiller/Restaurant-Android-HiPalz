@@ -3,7 +3,7 @@ import {
   View,
   Text,
   Modal,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
   TextInput,
@@ -93,7 +93,7 @@ export default function ItemCustomiseModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose} />
+      <Pressable style={styles.overlay} onPress={onClose} />
       <View style={styles.sheet}>
         <View style={styles.handle} />
         <Text style={styles.itemName}>{item.name}</Text>
@@ -103,11 +103,12 @@ export default function ItemCustomiseModal({
             <Text style={styles.label}>Variant</Text>
             <View style={styles.variantRow}>
               {variants.map(v => (
-                <TouchableOpacity
+                <Pressable
                   key={v.id}
-                  style={[
+                  style={({ pressed }) => [
                     styles.variantBtn,
                     variantId === v.id && styles.variantBtnActive,
+                    { opacity: pressed ? 0.7 : 1 },
                   ]}
                   onPress={() => {
                     setVariantId(v.id);
@@ -118,7 +119,7 @@ export default function ItemCustomiseModal({
                   <Text style={styles.variantPrice}>
                     ₹{v.price ?? item.price + (v.priceModifier ?? 0)}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </View>
@@ -135,15 +136,19 @@ export default function ItemCustomiseModal({
                     const entry = addons.find(a => a.addonChoiceId === choice.id);
                     const q = entry?.quantity ?? 0;
                     return (
-                      <TouchableOpacity
+                      <Pressable
                         key={choice.id}
-                        style={[styles.addonChoice, q > 0 && styles.addonChoiceActive]}
+                        style={({ pressed }) => [
+                          styles.addonChoice,
+                          q > 0 && styles.addonChoiceActive,
+                          { opacity: pressed ? 0.7 : 1 },
+                        ]}
                         onPress={() => toggleAddon(choice.id, choice.name)}
                       >
                         <Text style={styles.addonChoiceText}>{choice.name}</Text>
                         <Text style={styles.addonChoicePrice}>₹{choice.price}</Text>
                         {q > 0 && <Text style={styles.addonQty}>×{q}</Text>}
-                      </TouchableOpacity>
+                      </Pressable>
                     );
                   })}
                 </View>
@@ -165,27 +170,30 @@ export default function ItemCustomiseModal({
         <View style={styles.quantityRow}>
           <Text style={styles.label}>Quantity</Text>
           <View style={styles.stepper}>
-            <TouchableOpacity
-              style={styles.stepperBtn}
+            <Pressable
+              style={({ pressed }) => [styles.stepperBtn, { opacity: pressed ? 0.7 : 1 }]}
               onPress={() => setQuantity(q => Math.max(1, q - 1))}
             >
               <Text style={styles.stepperText}>−</Text>
-            </TouchableOpacity>
+            </Pressable>
             <Text style={styles.quantityText}>{quantity}</Text>
-            <TouchableOpacity
-              style={styles.stepperBtn}
+            <Pressable
+              style={({ pressed }) => [styles.stepperBtn, { opacity: pressed ? 0.7 : 1 }]}
               onPress={() => setQuantity(q => q + 1)}
             >
               <Text style={styles.stepperText}>+</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.total}>₹{(basePrice * quantity).toFixed(0)}</Text>
-          <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
+          <Pressable
+            style={({ pressed }) => [styles.addBtn, { opacity: pressed ? 0.7 : 1 }]}
+            onPress={handleAdd}
+          >
             <Text style={styles.addBtnText}>Add to cart</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     </Modal>

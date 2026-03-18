@@ -1,5 +1,4 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import type { Table, TableStatusType } from '../../api/types';
 
 const statusColor: Record<TableStatusType, string> = {
@@ -26,15 +25,14 @@ export default function TableCard({ table, onClick, status = 'available' }: Tabl
   const color = statusToColor[status];
 
   return (
-    <TouchableOpacity
-      style={[styles.card, { borderColor: color }]}
+    <Pressable
+      style={({ pressed }) => [styles.card, { borderColor: color, opacity: pressed ? 0.7 : 1 }]}
       onPress={() => onClick(table)}
-      activeOpacity={0.8}
     >
       <View style={[styles.statusDot, { backgroundColor: color }]} />
       <Text style={styles.name}>{table.name}</Text>
       <Text style={styles.capacity}>Capacity: {table.capacity}</Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

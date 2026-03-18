@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   StyleSheet,
   ActivityIndicator,
@@ -87,21 +87,34 @@ export default function BillDiscountModal({
         <View style={styles.sheet}>
           <View style={styles.header}>
             <Text style={styles.title}>Discount</Text>
-            <TouchableOpacity onPress={onClose}><Text style={styles.closeText}>Close</Text></TouchableOpacity>
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Text style={styles.closeText}>Close</Text>
+            </Pressable>
           </View>
           <View style={styles.row}>
-            <TouchableOpacity
-              style={[styles.typeBtn, type === 'PERCENTAGE' && styles.typeBtnActive]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.typeBtn,
+                type === 'PERCENTAGE' && styles.typeBtnActive,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={() => setType('PERCENTAGE')}
             >
               <Text style={styles.typeBtnText}>Percentage</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.typeBtn, type === 'FLAT' && styles.typeBtnActive]}
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.typeBtn,
+                type === 'FLAT' && styles.typeBtnActive,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={() => setType('FLAT')}
             >
               <Text style={styles.typeBtnText}>Flat</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
           <Text style={styles.label}>{type === 'PERCENTAGE' ? 'Percentage (0–100)' : 'Amount (₹)'}</Text>
           <TextInput
@@ -121,16 +134,32 @@ export default function BillDiscountModal({
             placeholderTextColor="#64748B"
           />
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.removeBtn} onPress={handleRemove} disabled={removing}>
-              {removing ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.removeBtnText}>Remove discount</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.addBtn, loading && styles.btnDisabled]}
+            <Pressable
+              style={({ pressed }) => [styles.removeBtn, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={handleRemove}
+              disabled={removing}
+            >
+              {removing ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <Text style={styles.removeBtnText}>Remove discount</Text>
+              )}
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.addBtn,
+                loading && styles.btnDisabled,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={handleAdd}
               disabled={loading}
             >
-              {loading ? <ActivityIndicator color="#0F172A" size="small" /> : <Text style={styles.addBtnText}>Apply</Text>}
-            </TouchableOpacity>
+              {loading ? (
+                <ActivityIndicator color="#0F172A" size="small" />
+              ) : (
+                <Text style={styles.addBtnText}>Apply</Text>
+              )}
+            </Pressable>
           </View>
         </View>
       </View>
