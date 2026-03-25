@@ -9,11 +9,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
-import { useTableStore } from '../store/tableStore';
 import { useCartStore } from '../store/cartStore';
 import { useBillStore } from '../store/billStore';
 import { useThemeStore } from '../store/themeStore';
-import { usePlaceKot, useKots, useAreasAndTables, useHasPermission } from '../hooks';
+import {
+  usePlaceKot,
+  useKots,
+  useAreasAndTables,
+  useHasPermission,
+  useTable,
+} from '../hooks';
 import { getColors, borderBrutal, neoButtonTertiary } from '../theme/neoBrutalism';
 import CartListSection from '../components/pos/CartListSection';
 import DecrementLineModal from '../components/pos/DecrementLineModal';
@@ -26,9 +31,10 @@ const EMPTY_CART: CartItem[] = [];
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LiveCart'>;
 
-export default function LiveCartScreen({ navigation }: Props) {
-  const currentTable = useTableStore(s => s.currentTable);
-  const tableId = currentTable?.id ?? null;
+export default function LiveCartScreen({ navigation, route }: Props) {
+  const { tableId } = route.params;
+  const { table: currentTable } = useTable(tableId);
+
   const cartItems = useCartStore(s => {
     if (!tableId) return EMPTY_CART;
     const cart = s.cartsByTableId[tableId];
@@ -42,8 +48,8 @@ export default function LiveCartScreen({ navigation }: Props) {
   const getBillEntry = useBillStore(s => s.getBillEntry);
 
   const outletId = useAuthStore(s => s.user?.outletId ?? '');
-  const { place, isPlacing } = usePlaceKot();
-  const { refetch: refetchKots } = useKots(currentTable?.id, outletId);
+  const { place, isPlacing } = usePlaceKot(tableId);
+  const { refetch: refetchKots } = useKots(tableId, outletId);
 
   const [decrementContext, setDecrementContext] = useState<{ itemName: string; lines: CartItem[] } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -53,14 +59,14 @@ export default function LiveCartScreen({ navigation }: Props) {
   const c = getColors(isDark);
   const cartTotal = cartItems.reduce((s, c) => s + c.totalPrice, 0);
   const cartCount = cartItems.reduce((s, c) => s + c.quantity, 0);
-  const billEntry = currentTable ? getBillEntry(currentTable.id) : null;
+  const billEntry = tableId ? getBillEntry(tableId) : null;
   const billSplit = billEntry?.bill?.isSplit ?? false;
   const canPlaceOrder = useHasPermission('PLACE_KOT');
   const canPlace = currentTable && cartItems.length > 0 && !billSplit && canPlaceOrder;
 
   useEffect(() => {
     if (currentTable && cartItems.length === 0) {
-      navigation.replace('POS');
+      navigation.replace('POS', { tableId });
     }
   }, [currentTable?.id, cartItems.length, navigation]);
 
@@ -84,7 +90,7 @@ export default function LiveCartScreen({ navigation }: Props) {
     const result = await place();
     if (result.success) {
       setActiveTab('kot');
-      navigation.replace('POS');
+      navigation.replace('POS', { tableId });
     } else {
       Alert.alert('Order failed', result.error ?? 'Could not place order.');
     }

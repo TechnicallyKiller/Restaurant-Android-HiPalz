@@ -2,7 +2,6 @@ import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getCategories, getAreaItems } from '../api/menuApi';
 import { useAuthStore } from '../store/authStore';
-import { useTableStore } from '../store/tableStore';
 import { usePosStore } from '../store/posStore';
 import { useDebounce } from './useDebounce';
 
@@ -22,10 +21,9 @@ export function useCategories() {
   };
 }
 
-export function useMenuItems() {
+export function useMenuItems(areaId: string | undefined) {
   const outletId = useAuthStore(s => s.user?.outletId ?? '');
-  const currentTable = useTableStore(s => s.currentTable);
-  const areaId = currentTable?.areaId ?? '';
+  const resolvedAreaId = areaId ?? '';
 
   const selectedCategoryId = usePosStore(s => s.selectedCategoryId);
   const itemSearchQuery = usePosStore(s => s.itemSearchQuery);
@@ -35,9 +33,9 @@ export function useMenuItems() {
   const debouncedSearch = useDebounce(itemSearchQuery, 300);
 
   const query = useQuery({
-    queryKey: ['menuItems', outletId, areaId],
-    queryFn: () => getAreaItems(outletId, areaId),
-    enabled: !!outletId && !!areaId,
+    queryKey: ['menuItems', outletId, resolvedAreaId],
+    queryFn: () => getAreaItems(outletId, resolvedAreaId),
+    enabled: !!outletId && !!resolvedAreaId,
   });
 
   const items = query.data ?? [];

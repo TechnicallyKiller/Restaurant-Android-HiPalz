@@ -12,9 +12,9 @@ export type RootStackParamList = {
   Welcome: undefined;
   Login: undefined;
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
-  POS: undefined;
-  LiveCart: undefined;
-  Bill: undefined;
+  POS: { tableId: string };
+  LiveCart: { tableId: string };
+  Bill: { tableId: string };
 };
 
 declare global {

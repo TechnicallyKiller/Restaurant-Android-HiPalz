@@ -9,25 +9,23 @@ import {
 } from '../api/billApi';
 import { getErrorMessage, handleApiError } from '../utils/errorHandling';
 import { useAuthStore } from '../store/authStore';
-import { useTableStore } from '../store/tableStore';
 import { useBillStore } from '../store/billStore';
 import type { BillPreviewData, BillPayPayload, PaymentModeItem } from '../api/types';
 
-export function useBillPreview() {
+export function useBillPreview(tableId: string | undefined) {
   const staffId = useAuthStore(s => s.user?.id ?? '');
-  const currentTable = useTableStore(s => s.currentTable);
   const setBillForTable = useBillStore(s => s.setBillForTable);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPreview = useCallback(async () => {
-    if (!currentTable || !staffId) return null;
+    if (!tableId || !staffId) return null;
     setIsLoading(true);
     setError(null);
     try {
-      const data = await billPreview(currentTable.id, staffId);
-      setBillForTable(currentTable.id, data);
+      const data = await billPreview(tableId, staffId);
+      setBillForTable(tableId, data);
       return data;
     } catch (err) {
       handleApiError(err);
@@ -36,14 +34,13 @@ export function useBillPreview() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentTable, staffId, setBillForTable]);
+  }, [tableId, staffId, setBillForTable]);
 
   return { fetchPreview, isLoading, error };
 }
 
-export function useBillGenerate() {
+export function useBillGenerate(tableId: string | undefined) {
   const staffId = useAuthStore(s => s.user?.id ?? '');
-  const currentTable = useTableStore(s => s.currentTable);
   const setBillForTable = useBillStore(s => s.setBillForTable);
   const queryClient = useQueryClient();
 
@@ -51,13 +48,14 @@ export function useBillGenerate() {
   const [error, setError] = useState<string | null>(null);
 
   const generate = useCallback(async (): Promise<BillPreviewData | null> => {
-    if (!currentTable || !staffId) return null;
+    if (!tableId || !staffId) return null;
     setIsGenerating(true);
     setError(null);
     try {
-      const data = await billGenerate(currentTable.id, staffId);
-      setBillForTable(currentTable.id, data);
-      queryClient.invalidateQueries({ queryKey: ['bill', currentTable.id] });
+      const data = await billGenerate(tableId, staffId);
+      setBillForTable(tableId, data);
+      queryClient.invalidateQueries({ queryKey: ['bill', tableId] });
+      queryClient.invalidateQueries({ queryKey: ['table', tableId] });
       return data;
     } catch (err) {
       handleApiError(err);
@@ -66,7 +64,7 @@ export function useBillGenerate() {
     } finally {
       setIsGenerating(false);
     }
-  }, [currentTable, staffId, setBillForTable, queryClient]);
+  }, [tableId, staffId, setBillForTable, queryClient]);
 
   return { generate, isGenerating, error };
 }

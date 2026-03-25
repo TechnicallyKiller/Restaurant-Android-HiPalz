@@ -14,3 +14,4 @@ export { useBillingHistory } from './useBillingHistory';
 export { useHasPermission } from './useHasPermission';
 export { usePermission } from './usePermission';
 export { useRunWithPermission } from './useRunWithPermission';
+export { useTable } from './useTable';

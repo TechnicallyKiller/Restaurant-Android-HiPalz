@@ -13,7 +13,6 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAreasAndTables, useInstancedBills } from '../hooks';
 import { useAuthStore } from '../store/authStore';
-import { useTableStore } from '../store/tableStore';
 import type { RootStackParamList } from '../navigation/types';
 import type { Table } from '../api/types';
 import type { AreaWithTables } from '../hooks/useAreasAndTables';
@@ -66,7 +65,6 @@ const TablesScreen = () => {
       refetchIntervalMs: 10000,
     },
   );
-  const setCurrentTable = useTableStore(s => s.setCurrentTable);
   const [refreshing, setRefreshing] = React.useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [startTableModalOpen, setStartTableModalOpen] = useState(false);
@@ -94,14 +92,12 @@ const TablesScreen = () => {
   };
 
   const onTablePress = (table: Table) => {
-    setCurrentTable(table);
-    navigation.navigate('POS');
+    navigation.navigate('POS', { tableId: table.id });
   };
 
   const onStartTableSelect = (table: Table) => {
-    setCurrentTable(table);
     setStartTableModalOpen(false);
-    navigation.navigate('POS');
+    navigation.navigate('POS', { tableId: table.id });
   };
 
   if (isLoading && grouped.length === 0) {

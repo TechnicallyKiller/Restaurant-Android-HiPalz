@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
-import { useTableStore } from '../store/tableStore';
 import { useCartStore } from '../store/cartStore';
 import { useBillStore } from '../store/billStore';
 import {
@@ -27,6 +26,7 @@ import {
   useBillGenerate,
   useHasPermission,
   useRunWithPermission,
+  useTable,
 } from '../hooks';
 import { cartLineToConfig } from '../api/cartUtils';
 import { reprintKot } from '../api';
@@ -61,20 +61,22 @@ type Props = NativeStackScreenProps<RootStackParamList, 'POS'>;
 
 type Tab = 'cart' | 'kot' | 'bill';
 
-const POSScreen = ({ navigation }: Props) => {
-  const currentTable = useTableStore(s => s.currentTable);
+const POSScreen = ({ navigation, route }: Props) => {
+  const { tableId } = route.params;
+  const { table: currentTable, isLoading: tableLoading } = useTable(tableId);
+
   const hasBillForTable = useBillStore(s => s.hasBillForTable);
   const getBillEntry = useBillStore(s => s.getBillEntry);
   const billForTab = useBillStore(s =>
-    currentTable ? s.getBillForTable(currentTable.id) : null,
+    tableId ? s.getBillForTable(tableId) : null,
   );
   const setBillForTable = useBillStore(s => s.setBillForTable);
-  const { fetchPreview, isLoading: previewLoading } = useBillPreview();
+  const { fetchPreview, isLoading: previewLoading } = useBillPreview(tableId);
   const { refresh: refetchBill, isRefreshing: billRefreshing } = useBillByTable(
-    currentTable?.id,
+    tableId,
   );
   const { generate: generateBill, isGenerating: isGeneratingBill } =
-    useBillGenerate();
+    useBillGenerate(tableId);
   const {
     getItemsForTable,
     addToCart,
@@ -95,20 +97,32 @@ const POSScreen = ({ navigation }: Props) => {
     selectCategory,
     setItemSearchQuery,
     refetch: refetchItems,
-  } = useMenuItems();
+  } = useMenuItems(currentTable?.areaId);
 
-  const { place, isPlacing, error: placeError } = usePlaceKot();
+  const { place, isPlacing, error: placeError } = usePlaceKot(tableId);
   const outletId = useAuthStore(s => s.user?.outletId ?? '');
   const staffId = useAuthStore(s => s.user?.id ?? '');
   const {
     kots,
     isLoading: kotsLoading,
     refetch: refetchKots,
-  } = useKots(currentTable?.id, outletId);
+  } = useKots(tableId, outletId);
 
-  type ModalType = 'none' | 'customise' | 'repeat' | 'decrement' | 'cart' | 'addItems' | 'reprint' | 'tableActions' | 'kotTransfer' | 'kotDelete';
-  const [modal, setModal] = useState<{ type: ModalType; data?: any }>({ type: 'none' });
-  
+  type ModalType =
+    | 'none'
+    | 'customise'
+    | 'repeat'
+    | 'decrement'
+    | 'cart'
+    | 'addItems'
+    | 'reprint'
+    | 'tableActions'
+    | 'kotTransfer'
+    | 'kotDelete';
+  const [modal, setModal] = useState<{ type: ModalType; data?: any }>({
+    type: 'none',
+  });
+
   const [isReprinting, setIsReprinting] = useState(false);
   const [showAddMoreItems, setShowAddMoreItems] = useState(false);
   const [addMoreFromKotVisible, setAddMoreFromKotVisible] = useState(false);
@@ -121,7 +135,7 @@ const POSScreen = ({ navigation }: Props) => {
   const { run: runPlaceOrder } = useRunWithPermission('PLACE_KOT');
 
   const { grouped, refetch: refetchTables } = useAreasAndTables();
-  const allTablesForTransfer = React.useMemo(
+  const allTablesForTransfer = useMemo(
     () =>
       currentTable
         ? grouped.flatMap(g => g.tables).filter(t => t.id !== currentTable.id)
@@ -130,7 +144,7 @@ const POSScreen = ({ navigation }: Props) => {
   );
 
   const cartItems = currentTable ? getItemsForTable(currentTable.id) : [];
-  
+
   const quantityMap = React.useMemo(() => {
     const map = new Map<string, number>();
     cartItems.forEach(c => {
@@ -169,14 +183,10 @@ const POSScreen = ({ navigation }: Props) => {
       if (hasBillForTable(currentTable.id)) refetchBill();
       else fetchPreview();
     }
-  }, [
-    activeTab,
-    currentTable?.id,
-    currentTable?.tableStatus,
-  ]);
+  }, [activeTab, currentTable?.id, currentTable?.tableStatus]);
 
   const handleAddToCart = (config: CartConfig, quantity: number) => {
-    if (!currentTable || (modal.type !== 'customise' || !modal.data)) return;
+    if (!currentTable || modal.type !== 'customise' || !modal.data) return;
     addToCart(currentTable.id, modal.data, config, quantity);
   };
 
@@ -235,7 +245,10 @@ const POSScreen = ({ navigation }: Props) => {
       updateQuantity(currentTable.id, similar[0].cartId, -1);
       return;
     }
-    setModal({ type: 'decrement', data: { itemName: item.name, lines: similar } });
+    setModal({
+      type: 'decrement',
+      data: { itemName: item.name, lines: similar },
+    });
   };
 
   const handleCartDecrementRequest = (line: CartItem) => {
@@ -246,7 +259,11 @@ const POSScreen = ({ navigation }: Props) => {
     }
     const similar = findSimilarItems(currentTable.id, line.areaItemId);
     if (similar.length <= 1) updateQuantity(currentTable.id, line.cartId, -1);
-    else setModal({ type: 'decrement', data: { itemName: line.name, lines: similar } });
+    else
+      setModal({
+        type: 'decrement',
+        data: { itemName: line.name, lines: similar },
+      });
   };
 
   const handlePlaceOrder = async () => {
@@ -297,10 +314,19 @@ const POSScreen = ({ navigation }: Props) => {
     }
   };
 
+  if (tableLoading && !currentTable) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.tertiary} />
+        <Text style={styles.loadingText}>Loading table data...</Text>
+      </View>
+    );
+  }
+
   if (!currentTable) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.noTable}>No table selected</Text>
+        <Text style={styles.noTable}>Table not found or still loading</Text>
         <Pressable
           style={({ pressed }) => [
             styles.backBtn,
@@ -485,7 +511,9 @@ const POSScreen = ({ navigation }: Props) => {
                       </Pressable>
                     </View>
                   )}
-                  <View style={styles.cartTabContent}>
+                  <View
+                    style={[styles.cartTabContent, styles.contentWithFooter]}
+                  >
                     <CategorySelector
                       categories={categories}
                       selectedCategoryId={selectedCategoryId}
@@ -529,11 +557,72 @@ const POSScreen = ({ navigation }: Props) => {
                   </View>
                 </View>
               ) : (
-                <View style={styles.cartTabContent}>
-                  <View style={styles.addMorePlaceholder}>
-                    <Text style={styles.addMorePlaceholderText}>
-                      Order already placed. Add more items to this table.
-                    </Text>
+                <View style={styles.cartTabContentWrapper}>
+                  {isEmptyTable && (
+                    <View style={styles.emptyTableBanner}>
+                      <Text style={styles.emptyTableBannerText}>
+                        Add items to place order
+                      </Text>
+                    </View>
+                  )}
+                  {hasKot && (
+                    <View style={styles.addMoreHeader}>
+                      <Text style={styles.addMoreHeaderTitle}>
+                        Add more items
+                      </Text>
+                      <Pressable
+                        style={({ pressed }) => [
+                          { opacity: pressed ? 0.7 : 1 },
+                        ]}
+                        onPress={() => setShowAddMoreItems(false)}
+                      >
+                        <Text style={styles.addMoreHeaderDone}>Done</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                  <View
+                    style={[styles.cartTabContent, styles.contentWithFooter]}
+                  >
+                    <CategorySelector
+                      categories={categories}
+                      selectedCategoryId={selectedCategoryId}
+                      onSelectCategory={selectCategory}
+                    />
+                    <View style={styles.dishesWrap}>
+                      <View style={styles.searchWrap}>
+                        <SearchInput
+                          value={itemSearchQuery}
+                          onChange={setItemSearchQuery}
+                          placeholder="Search dishes"
+                          style={styles.searchInput}
+                        />
+                      </View>
+                      {(isLoadingCategories || isLoadingItems) &&
+                      filteredItems.length === 0 ? (
+                        <View style={styles.dishesLoading}>
+                          <ActivityIndicator
+                            size="large"
+                            color={colors.tertiary}
+                          />
+                        </View>
+                      ) : (
+                        <FlatList
+                          data={filteredItems}
+                          keyExtractor={item => item.id}
+                          contentContainerStyle={styles.itemList}
+                          renderItem={({ item }) => (
+                            <ItemCard
+                              item={item}
+                              quantityInCart={getQuantityForItem(item.id)}
+                              onAdd={() => handleAddItem(item)}
+                              onIncrement={() => handleIncrementItem(item)}
+                              onDecrement={() => handleDecrementItem(item)}
+                              fullWidth
+                            />
+                          )}
+                        />
+                      )}
+                    </View>
                   </View>
                 </View>
               )}
@@ -570,20 +659,11 @@ const POSScreen = ({ navigation }: Props) => {
                         styles.placeOrderBtn,
                         { opacity: pressed ? 0.7 : 1 },
                       ]}
-                      onPress={() => navigation.navigate('LiveCart')}
+                      onPress={() => navigation.navigate('LiveCart', { tableId })}
                     >
                       <Text style={styles.placeOrderBtnText}>Show Cart</Text>
                     </Pressable>
                   )}
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.addMoreItemBtn,
-                      { opacity: pressed ? 0.7 : 1 },
-                    ]}
-                    onPress={() => setShowAddMoreItems(true)}
-                  >
-                    <Text style={styles.addMoreItemBtnText}>Add more item</Text>
-                  </Pressable>
                 </View>
               ) : cartItems.length > 0 ? (
                 <View style={styles.cartBar}>
@@ -597,7 +677,7 @@ const POSScreen = ({ navigation }: Props) => {
                         styles.placeOrderBtn,
                         { opacity: pressed ? 0.7 : 1 },
                       ]}
-                      onPress={() => navigation.navigate('LiveCart')}
+                      onPress={() => navigation.navigate('LiveCart', { tableId })}
                     >
                       <Text style={styles.placeOrderBtnText}>Show Cart</Text>
                     </Pressable>
@@ -650,7 +730,10 @@ const POSScreen = ({ navigation }: Props) => {
                   key={kot.id}
                   kot={kot}
                   onReprint={() => {
-                    setModal({ type: 'reprint', data: { id: kot.id, number: kot.kotInvoiceNumber } });
+                    setModal({
+                      type: 'reprint',
+                      data: { id: kot.id, number: kot.kotInvoiceNumber },
+                    });
                   }}
                 />
               ))
@@ -664,7 +747,7 @@ const POSScreen = ({ navigation }: Props) => {
                   styles.kotFooterBtnSecondary,
                   { opacity: pressed ? 0.7 : 1 },
                 ]}
-                onPress={() => navigation.navigate('LiveCart')}
+                onPress={() => navigation.navigate('LiveCart', { tableId })}
               >
                 <Text style={styles.kotFooterBtnText}>Show Cart</Text>
               </Pressable>
@@ -776,7 +859,7 @@ const POSScreen = ({ navigation }: Props) => {
                     styles.billNavBtn,
                     { opacity: pressed ? 0.7 : 1 },
                   ]}
-                  onPress={() => navigation.navigate('Bill')}
+                  onPress={() => navigation.navigate('Bill', { tableId })}
                 >
                   <Text style={styles.billNavBtnText}>Open Bill →</Text>
                 </Pressable>
@@ -788,7 +871,7 @@ const POSScreen = ({ navigation }: Props) => {
                   styles.billCartBtn,
                   { opacity: pressed ? 0.7 : 1 },
                 ]}
-                onPress={() => navigation.navigate('LiveCart')}
+                onPress={() => navigation.navigate('LiveCart', { tableId })}
               >
                 <Text style={styles.billCartBtnText}>
                   View Cart ({cartCount})
@@ -808,7 +891,7 @@ const POSScreen = ({ navigation }: Props) => {
 
       <RepeatLastOrNewModal
         visible={modal.type === 'repeat'}
-        itemName={(modal.type === 'repeat' ? modal.data.name : '')}
+        itemName={modal.type === 'repeat' ? modal.data.name : ''}
         onClose={() => setModal({ type: 'none' })}
         onRepeatLast={() => {
           if (!currentTable || modal.type !== 'repeat' || !modal.data) return;
@@ -821,7 +904,8 @@ const POSScreen = ({ navigation }: Props) => {
           setModal({ type: 'none' });
         }}
         onAddNew={() => {
-          if (modal.type === 'repeat' && modal.data) setModal({ type: 'customise', data: modal.data });
+          if (modal.type === 'repeat' && modal.data)
+            setModal({ type: 'customise', data: modal.data });
           setModal({ type: 'none' });
         }}
       />
@@ -1004,6 +1088,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   noTable: { color: colors.mutedForeground, marginBottom: 16 },
+  loadingText: { color: colors.mutedForeground, marginTop: 12 },
   backBtn: { ...borderBrutal, backgroundColor: colors.base200, padding: 16 },
   backBtnText: { color: colors.foreground, fontWeight: '600' },
   header: {
@@ -1142,6 +1227,7 @@ const styles = StyleSheet.create({
   },
   cartTabContentWrapper: { flex: 1 },
   cartTabContent: { flex: 1, flexDirection: 'row', padding: 0 },
+  contentWithFooter: { paddingBottom: 100 },
   emptyTableBanner: {
     paddingVertical: 10,
     paddingHorizontal: 16,

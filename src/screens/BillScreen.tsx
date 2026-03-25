@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTableStore } from '../store/tableStore';
+
 import { useBillStore } from '../store/billStore';
 import { useAuthStore } from '../store/authStore';
 import {
@@ -21,6 +21,7 @@ import {
   useKots,
   useHasPermission,
   useRunWithPermission,
+  useTable,
 } from '../hooks';
 import { createTableInstance, printBill, clubSplits, getSplitsByBillId } from '../api';
 import { getErrorMessage } from '../utils/errorHandling';
@@ -40,23 +41,25 @@ import type { RootStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Bill'>;
 
-const BillScreen = ({ navigation }: Props) => {
-  const currentTable = useTableStore(s => s.currentTable);
+const BillScreen = ({ navigation, route }: Props) => {
+  const { tableId } = route.params;
+  const { table: currentTable } = useTable(tableId);
+
   const bill = useBillStore(s =>
-    currentTable ? s.getBillForTable(currentTable.id) : null,
+    tableId ? s.getBillForTable(tableId) : null,
   );
   const setBillForTable = useBillStore(s => s.setBillForTable);
   const hasBill = Boolean(bill?.id);
 
   const { refetch: refetchTables } = useAreasAndTables();
-  const { fetchPreview, isLoading: previewLoading } = useBillPreview();
-  const { generate, isGenerating } = useBillGenerate();
-  const { refresh, isRefreshing } = useBillByTable(currentTable?.id);
+  const { fetchPreview, isLoading: previewLoading } = useBillPreview(tableId);
+  const { generate, isGenerating } = useBillGenerate(tableId);
+  const { refresh, isRefreshing } = useBillByTable(tableId);
   const { modes, refetch: refetchModes } = usePaymentModes();
 
   const staffId = useAuthStore(s => s.user?.id ?? '');
   const outletId = useAuthStore(s => s.user?.outletId ?? '');
-  const { kots } = useKots(currentTable?.id, outletId);
+  const { kots } = useKots(tableId, outletId);
   const [settleVisible, setSettleVisible] = useState(false);
   const [discountVisible, setDiscountVisible] = useState(false);
   const [serviceChargeVisible, setServiceChargeVisible] = useState(false);
@@ -142,7 +145,7 @@ const BillScreen = ({ navigation }: Props) => {
             setCreatingInstance(true);
             try {
               await createTableInstance({ billId: bill.id!, staffId });
-              setBillForTable(currentTable!.id, null);
+              setBillForTable(tableId, null);
               refetchTables();
               navigation.navigate('MainTabs');
             } catch (err) {
@@ -200,7 +203,7 @@ const BillScreen = ({ navigation }: Props) => {
       const v = (await getSplitsByBillId(bill.id)).map(normalizeBillPreviewData);
       setVariants(v);
       if (v.length > 0 && v.every(x => x.status === 'PAID')) {
-        setBillForTable(currentTable!.id, null);
+        setBillForTable(tableId, null);
         refetchTables();
         navigation.navigate('MainTabs');
       }
