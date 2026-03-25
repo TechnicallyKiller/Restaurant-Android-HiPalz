@@ -87,9 +87,8 @@ const BillScreen = ({ navigation }: Props) => {
     if (currentTable && !bill && kots.length > 0) fetchPreview();
   }, [currentTable?.id, kots.length]);
 
-  useEffect(() => {
-    refetchModes();
-  }, [refetchModes]);
+
+
 
   useEffect(() => {
     if (bill?.isSplit && bill?.id) {
@@ -187,13 +186,13 @@ const BillScreen = ({ navigation }: Props) => {
     if (allPaid === true) {
       setBillForTable(currentTable!.id, null);
       refetchTables();
-      navigation.navigate('POS');
+      navigation.navigate('MainTabs');
       return;
     }
     if (!bill?.isSplit) {
       setBillForTable(currentTable!.id, null);
       refetchTables();
-      navigation.navigate('POS');
+      navigation.navigate('MainTabs');
       return;
     }
     await refetchBill();
@@ -203,7 +202,7 @@ const BillScreen = ({ navigation }: Props) => {
       if (v.length > 0 && v.every(x => x.status === 'PAID')) {
         setBillForTable(currentTable!.id, null);
         refetchTables();
-        navigation.navigate('POS');
+        navigation.navigate('MainTabs');
       }
     }
     refetchTables();

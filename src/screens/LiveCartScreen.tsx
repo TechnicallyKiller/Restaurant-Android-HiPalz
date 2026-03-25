@@ -83,12 +83,6 @@ export default function LiveCartScreen({ navigation }: Props) {
     }
     const result = await place();
     if (result.success) {
-      setPostKotRefreshing(true);
-      try {
-        await Promise.all([refetchKots(), refetchTables()]);
-      } finally {
-        setPostKotRefreshing(false);
-      }
       setActiveTab('kot');
       navigation.replace('POS');
     } else {

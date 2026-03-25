@@ -35,7 +35,10 @@ function filterActiveTables(grouped: AreaWithTables[]): AreaWithTables[] {
     .filter(g => g.tables.length > 0);
 }
 
-function filterGroupedBySearch(grouped: AreaWithTables[], query: string): AreaWithTables[] {
+function filterGroupedBySearch(
+  grouped: AreaWithTables[],
+  query: string,
+): AreaWithTables[] {
   const q = query.trim().toLowerCase();
   if (!q) return grouped;
   return grouped
@@ -51,12 +54,18 @@ function filterGroupedBySearch(grouped: AreaWithTables[], query: string): AreaWi
 }
 
 const TablesScreen = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const outletId = useAuthStore(s => s.user?.outletId ?? '');
-  const { grouped, isLoading, error, refetch } = useAreasAndTables({ refetchIntervalMs: 9000 });
-  const { instances = [], refetch: refetchInstances } = useInstancedBills(outletId, {
-    refetchIntervalMs: 10000,
+  const { grouped, isLoading, error, refetch } = useAreasAndTables({
+    refetchIntervalMs: 9000,
   });
+  const { instances = [], refetch: refetchInstances } = useInstancedBills(
+    outletId,
+    {
+      refetchIntervalMs: 10000,
+    },
+  );
   const setCurrentTable = useTableStore(s => s.setCurrentTable);
   const [refreshing, setRefreshing] = React.useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -105,7 +114,12 @@ const TablesScreen = () => {
 
   if (error && grouped.length === 0) {
     return (
-      <ErrorFallback message={error} onRetry={refetch} />
+      <ErrorFallback
+        message={error}
+        onRetry={() => {
+          refetch();
+        }}
+      />
     );
   }
 
@@ -114,7 +128,10 @@ const TablesScreen = () => {
       <View style={styles.headerRow}>
         <Text style={styles.header}>Tables</Text>
         <Pressable
-          style={({ pressed }) => [styles.refreshBtn, { opacity: pressed ? 0.7 : 1 }]}
+          style={({ pressed }) => [
+            styles.refreshBtn,
+            { opacity: pressed ? 0.7 : 1 },
+          ]}
           onPress={onRefresh}
           disabled={refreshing}
         >
@@ -129,86 +146,96 @@ const TablesScreen = () => {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.tertiary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.tertiary}
+          />
         }
       >
-      {sortedInstances.length > 0 && (
-        <View style={styles.instancesSection}>
-          <Text style={styles.instancesSectionTitle}>Table instances</Text>
-          <Text style={styles.instancesSectionSubtitle}>
-            Tables freed for new orders with an open bill. Click to continue billing.
-          </Text>
-          {sortedInstances.map((inst, index) => {
-            const billId = inst.id ?? inst.billId ?? '';
-            return (
-                <Pressable
-                  key={billId || `instance-${index}`}
-                  style={({ pressed }) => [
-                    styles.instanceCard,
-                    { opacity: pressed ? 0.7 : 1 },
-                  ]}
-                  onPress={() => billId && setInstanceBillId(billId)}
-                >
-                  <View style={styles.instanceInfo}>
+        {sortedInstances.length > 0 && (
+          <View style={styles.instancesSection}>
+            <Text style={styles.instancesSectionTitle}>Table instances</Text>
+            <Text style={styles.instancesSectionSubtitle}>
+              Tables freed for new orders with an open bill. Click to continue
+              billing.
+            </Text>
+            <View style={styles.instanceGrid}>
+              {sortedInstances.map((inst, index) => {
+                const billId = inst.id ?? inst.billId ?? '';
+                return (
+                  <Pressable
+                    key={billId || `instance-${index}`}
+                    style={({ pressed }) => [
+                      styles.instanceCardGrid,
+                      { opacity: pressed ? 0.7 : 1 },
+                      {
+                        borderColor:
+                          (inst.payable ?? 0) > 0 ? colors.tertiary : '#22C55E',
+                      },
+                    ]}
+                    onPress={() => billId && setInstanceBillId(billId)}
+                  >
                     <View style={styles.instanceIconWrap}>
                       <Text style={styles.instanceIcon}>🕒</Text>
                     </View>
-                    <View>
-                      <Text style={styles.instanceCardTitle}>
-                        {inst.tableName ?? 'Table'}
-                      </Text>
-                      <Text style={styles.instanceCardSub}>
-                        {inst.captainName ? `${inst.captainName} · ` : ''}
-                        Settlement Pending
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.instanceAmountWrap}>
-                    <Text style={styles.instanceAmount}>
-                      ₹{inst.payable?.toFixed(0) ?? '0'}
+
+                    <Text style={styles.instanceCardTitle}>
+                      {inst.tableName ?? 'Table'}
                     </Text>
-                  </View>
-                </Pressable>
-            );
-          })}
-        </View>
-      )}
 
-      <SearchInput
-        value={searchQuery}
-        onChange={setSearchQuery}
-        placeholder="Search tables…"
-        style={styles.search}
-      />
-
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-      {filteredGrouped.length === 0 ? (
-        <Text style={styles.empty}>
-          {activeGrouped.length === 0
-            ? 'No active tables'
-            : 'No tables match your search'}
-        </Text>
-      ) : (
-        filteredGrouped.map(({ area, tables }) => (
-          <View key={area.id} style={styles.section}>
-            <View style={styles.areaHeader}>
-              <Text style={styles.areaName}>{area.name}</Text>
-              <View style={styles.areaLine} />
-            </View>
-            <View style={styles.tableGrid}>
-              {tables.map(t => (
-                <ActiveTableCard key={t.id} table={t} onClick={onTablePress} />
-              ))}
+                    <Text style={styles.instanceCardSub}>
+                      {inst.captainName ? `${inst.captainName}` : 'System'}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
-        ))
-      )}
+        )}
+
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search tables…"
+          style={styles.search}
+        />
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        {filteredGrouped.length === 0 ? (
+          <Text style={styles.empty}>
+            {activeGrouped.length === 0
+              ? 'No active tables'
+              : 'No tables match your search'}
+          </Text>
+        ) : (
+          filteredGrouped.map(({ area, tables }) => (
+            <View key={area.id} style={styles.section}>
+              <View style={styles.areaHeader}>
+                <Text style={styles.areaName}>{area.name}</Text>
+                <View style={styles.areaLine} />
+              </View>
+              <View style={styles.tableGrid}>
+                {tables.map(t => (
+                  <ActiveTableCard
+                    key={t.id}
+                    table={t}
+                    onClick={onTablePress}
+                  />
+                ))}
+              </View>
+            </View>
+          ))
+        )}
       </ScrollView>
 
       <View style={styles.fixedBottom}>
         <Pressable
-          style={({ pressed }) => [styles.startTableBtn, { opacity: pressed ? 0.7 : 1 }]}
+          style={({ pressed }) => [
+            styles.startTableBtn,
+            { opacity: pressed ? 0.7 : 1 },
+          ]}
           onPress={() => setStartTableModalOpen(true)}
         >
           <Text style={styles.startTableBtnText}>Start table</Text>
@@ -334,46 +361,47 @@ const styles = StyleSheet.create({
   },
   empty: { color: colors.mutedForeground, textAlign: 'center', marginTop: 24 },
 
-  instanceCard: {
-    ...neoCard,
-    padding: 12,
-    marginBottom: 12,
+  instanceGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    borderColor: colors.tertiary,
-  },
-  instanceInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
   },
+  instanceCardGrid: {
+    ...neoCard,
+    width: '48%',
+    padding: 12,
+    borderColor: colors.tertiary,
+    alignItems: 'center',
+    gap: 6,
+  },
   instanceIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.base200,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.brutalBorder,
+    marginBottom: 6,
   },
   instanceIcon: { fontSize: 18 },
   instanceCardTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
     color: colors.foreground,
   },
   instanceCardSub: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.mutedForeground,
-    marginTop: 2,
   },
   instanceAmountWrap: {
+    marginTop: 6,
     backgroundColor: colors.tertiary,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
     borderWidth: 2,
     borderColor: colors.brutalBorder,
   },

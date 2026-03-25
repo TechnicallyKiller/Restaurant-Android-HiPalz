@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { placeKot, getKotsByTable } from '../api/kotApi';
 import { buildPlaceOrderPayload } from '../api/cartUtils';
-import { getErrorMessage, handleApiError } from '../utils/errorHandling';
+import { getErrorMessage } from '../utils/errorHandling';
 import { useAuthStore } from '../store/authStore';
 import { useTableStore } from '../store/tableStore';
 import { useCartStore } from '../store/cartStore';
@@ -13,6 +14,7 @@ export function usePlaceKot() {
   const currentTable = useTableStore(s => s.currentTable);
   const getItemsForTable = useCartStore(s => s.getItemsForTable);
   const clearCart = useCartStore(s => s.clearCart);
+  const queryClient = useQueryClient();
 
   const [isPlacing, setIsPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +34,9 @@ export function usePlaceKot() {
       );
       await placeKot(payload);
       clearCart(currentTable.id);
+      // Invalidate queries so they auto-refetch
+      queryClient.invalidateQueries({ queryKey: ['kots', currentTable.id] });
+      queryClient.invalidateQueries({ queryKey: ['areasAndTables'] });
       return { success: true as const };
     } catch (err) {
       const msg = getErrorMessage(err);
@@ -46,35 +51,22 @@ export function usePlaceKot() {
     outletId,
     getItemsForTable,
     clearCart,
+    queryClient,
   ]);
 
   return { place, isPlacing, error };
 }
 
 export function useKots(tableId: string | undefined, outletId: string) {
-  const [kots, setKots] = useState<Kot[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const query = useQuery({
+    queryKey: ['kots', tableId, outletId],
+    queryFn: () => getKotsByTable(tableId!, outletId),
+    enabled: !!tableId && !!outletId,
+  });
 
-  const fetchKots = useCallback(async () => {
-    if (!tableId || !outletId) {
-      setKots([]);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const data = await getKotsByTable(tableId, outletId);
-      setKots(data);
-    } catch (err) {
-      handleApiError(err);
-      setKots([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [tableId, outletId]);
-
-  useEffect(() => {
-    fetchKots();
-  }, [fetchKots]);
-
-  return { kots, isLoading, refetch: fetchKots };
+  return {
+    kots: query.data ?? [],
+    isLoading: query.isLoading,
+    refetch: query.refetch,
+  };
 }

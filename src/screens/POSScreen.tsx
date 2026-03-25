@@ -31,6 +31,7 @@ import {
 import { cartLineToConfig } from '../api/cartUtils';
 import { reprintKot } from '../api';
 import ItemCard from '../components/pos/ItemCard';
+import CategorySelector from '../components/pos/CategorySelector';
 import ItemCustomiseModal from '../components/pos/ItemCustomiseModal';
 import RepeatLastOrNewModal from '../components/pos/RepeatLastOrNewModal';
 import DecrementLineModal from '../components/pos/DecrementLineModal';
@@ -105,20 +106,10 @@ const POSScreen = ({ navigation }: Props) => {
     refetch: refetchKots,
   } = useKots(currentTable?.id, outletId);
 
-  const [customiseItem, setCustomiseItem] = useState<Item | null>(null);
-  const [repeatItem, setRepeatItem] = useState<Item | null>(null);
-  const [decrementContext, setDecrementContext] = useState<{
-    itemName: string;
-    lines: CartItem[];
-  } | null>(null);
-  const [cartModalVisible, setCartModalVisible] = useState(false);
-  const [addItemsModalVisible, setAddItemsModalVisible] = useState(false);
-  const [reprintKotId, setReprintKotId] = useState<string | null>(null);
-  const [reprintKotNumber, setReprintKotNumber] = useState<number | null>(null);
+  type ModalType = 'none' | 'customise' | 'repeat' | 'decrement' | 'cart' | 'addItems' | 'reprint' | 'tableActions' | 'kotTransfer' | 'kotDelete';
+  const [modal, setModal] = useState<{ type: ModalType; data?: any }>({ type: 'none' });
+  
   const [isReprinting, setIsReprinting] = useState(false);
-  const [tableActionsVisible, setTableActionsVisible] = useState(false);
-  const [kotTransferVisible, setKotTransferVisible] = useState(false);
-  const [kotDeleteVisible, setKotDeleteVisible] = useState(false);
   const [showAddMoreItems, setShowAddMoreItems] = useState(false);
   const [addMoreFromKotVisible, setAddMoreFromKotVisible] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -139,56 +130,73 @@ const POSScreen = ({ navigation }: Props) => {
   );
 
   const cartItems = currentTable ? getItemsForTable(currentTable.id) : [];
+  
+  const quantityMap = React.useMemo(() => {
+    const map = new Map<string, number>();
+    cartItems.forEach(c => {
+      map.set(c.areaItemId, (map.get(c.areaItemId) || 0) + c.quantity);
+    });
+    return map;
+  }, [cartItems]);
+
   const cartTotal = cartItems.reduce((s, c) => s + c.totalPrice, 0);
   const cartCount = cartItems.reduce((s, c) => s + c.quantity, 0);
 
   const kotCount = kots?.length ?? 0;
-  const isEmptyTable = kotCount === 0 && cartItems.length === 0;
+  const isEmptyTable = currentTable?.tableStatus === 'EMPTY';
   const billEntry = currentTable ? getBillEntry(currentTable.id) : null;
   const hasBill = !!billEntry?.bill?.id;
-  const showBillTab = kotCount > 0 || hasBill;
+  const showBillTab =
+    currentTable?.tableStatus === 'ACTIVE' ||
+    currentTable?.tableStatus === 'BILL_PRINTED';
 
-  // Removed aggressive tab-flipping useEffect to prevent race conditions during order placement.
-  // Instead, we trust the manual and automatic tab switches.
-
+  // Reset UI when switching to an EMPTY table
   useEffect(() => {
-    if (activeTab === 'bill' && currentTable && kotCount > 0) {
+    if (currentTable?.tableStatus === 'EMPTY') {
+      setShowAddMoreItems(false);
+      setActiveTab('cart');
+    }
+  }, [currentTable?.id, currentTable?.tableStatus, setActiveTab]);
+
+  // Fetch bill data when bill tab is active on a valid table
+  useEffect(() => {
+    if (
+      activeTab === 'bill' &&
+      currentTable &&
+      (currentTable.tableStatus === 'ACTIVE' ||
+        currentTable.tableStatus === 'BILL_PRINTED')
+    ) {
       if (hasBillForTable(currentTable.id)) refetchBill();
       else fetchPreview();
     }
   }, [
     activeTab,
     currentTable?.id,
-    kotCount,
-    hasBillForTable,
-    refetchBill,
-    fetchPreview,
+    currentTable?.tableStatus,
   ]);
 
   const handleAddToCart = (config: CartConfig, quantity: number) => {
-    if (!currentTable || !customiseItem) return;
-    addToCart(currentTable.id, customiseItem, config, quantity);
+    if (!currentTable || (modal.type !== 'customise' || !modal.data)) return;
+    addToCart(currentTable.id, modal.data, config, quantity);
   };
 
   const itemHasOptions = (item: Item) => {
     const variants = item.itemVariants?.length ?? 0;
     const addons = item.itemAddons?.length ?? 0;
-    return variants >= 2 || addons > 0;
+    return variants > 0 || addons > 0;
   };
 
   const defaultConfigForItem = (item: Item): CartConfig => {
     const first = item.itemVariants?.[0];
     return {
-      variantId: first?.id ?? undefined,
+      variantId: first?._id ?? undefined,
       variantName: first?.name ?? undefined,
       addons: [],
     };
   };
 
   const getQuantityForItem = (itemId: string) => {
-    if (!currentTable) return 0;
-    const similar = findSimilarItems(currentTable.id, itemId);
-    return similar.reduce((s, c) => s + c.quantity, 0);
+    return quantityMap.get(itemId) || 0;
   };
 
   const handleAddItem = (item: Item) => {
@@ -199,10 +207,10 @@ const POSScreen = ({ navigation }: Props) => {
     }
     const similar = findSimilarItems(currentTable.id, item.id);
     if (similar.length === 0) {
-      setCustomiseItem(item);
+      setModal({ type: 'customise', data: item });
       return;
     }
-    setRepeatItem(item);
+    setModal({ type: 'repeat', data: item });
   };
 
   const handleIncrementItem = (item: Item) => {
@@ -213,10 +221,10 @@ const POSScreen = ({ navigation }: Props) => {
     }
     const similar = findSimilarItems(currentTable.id, item.id);
     if (similar.length === 0) {
-      setCustomiseItem(item);
+      setModal({ type: 'customise', data: item });
       return;
     }
-    setRepeatItem(item);
+    setModal({ type: 'repeat', data: item });
   };
 
   const handleDecrementItem = (item: Item) => {
@@ -227,7 +235,7 @@ const POSScreen = ({ navigation }: Props) => {
       updateQuantity(currentTable.id, similar[0].cartId, -1);
       return;
     }
-    setDecrementContext({ itemName: item.name, lines: similar });
+    setModal({ type: 'decrement', data: { itemName: item.name, lines: similar } });
   };
 
   const handleCartDecrementRequest = (line: CartItem) => {
@@ -238,7 +246,7 @@ const POSScreen = ({ navigation }: Props) => {
     }
     const similar = findSimilarItems(currentTable.id, line.areaItemId);
     if (similar.length <= 1) updateQuantity(currentTable.id, line.cartId, -1);
-    else setDecrementContext({ itemName: line.name, lines: similar });
+    else setModal({ type: 'decrement', data: { itemName: line.name, lines: similar } });
   };
 
   const handlePlaceOrder = async () => {
@@ -252,11 +260,14 @@ const POSScreen = ({ navigation }: Props) => {
       if (result.success) {
         setPostKotRefreshing(true);
         try {
-          await Promise.all([refetchKots(), refetchTables()]);
+          await refetchKots();
+          await refetchTables();
+        } catch (e) {
+          console.error(e);
         } finally {
           setPostKotRefreshing(false);
         }
-        setCartModalVisible(false);
+        setModal({ type: 'none' });
         const data = await generateBill();
         if (data) {
           setGenBillWarningVisible(true);
@@ -270,12 +281,11 @@ const POSScreen = ({ navigation }: Props) => {
   };
 
   const handleReprintKot = async () => {
-    if (!reprintKotId) return;
+    if (modal.type !== 'reprint' || !modal.data.id) return;
     setIsReprinting(true);
     try {
-      await reprintKot(reprintKotId);
-      setReprintKotId(null);
-      setReprintKotNumber(null);
+      await reprintKot(modal.data.id);
+      setModal({ type: 'none' });
       refetchKots();
     } catch (err) {
       Alert.alert(
@@ -361,7 +371,7 @@ const POSScreen = ({ navigation }: Props) => {
             styles.tableActionsBtn,
             { opacity: pressed ? 0.7 : 1 },
           ]}
-          onPress={() => setTableActionsVisible(true)}
+          onPress={() => setModal({ type: 'tableActions' })}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Text style={styles.tableActionsBtnText}>Table actions</Text>
@@ -378,8 +388,8 @@ const POSScreen = ({ navigation }: Props) => {
       />
 
       <TableActionsModal
-        visible={tableActionsVisible}
-        onClose={() => setTableActionsVisible(false)}
+        visible={modal.type === 'tableActions'}
+        onClose={() => setModal({ type: 'none' })}
         currentTable={currentTable}
         grouped={grouped}
         onSwitchTable={() => navigation.navigate('MainTabs')}
@@ -391,8 +401,8 @@ const POSScreen = ({ navigation }: Props) => {
       />
 
       <KotTransferModal
-        visible={kotTransferVisible}
-        onClose={() => setKotTransferVisible(false)}
+        visible={modal.type === 'kotTransfer'}
+        onClose={() => setModal({ type: 'none' })}
         kots={kots}
         fromTableId={currentTable.id}
         tables={allTablesForTransfer}
@@ -405,8 +415,8 @@ const POSScreen = ({ navigation }: Props) => {
         }}
       />
       <KotDeleteModal
-        visible={kotDeleteVisible}
-        onClose={() => setKotDeleteVisible(false)}
+        visible={modal.type === 'kotDelete'}
+        onClose={() => setModal({ type: 'none' })}
         kots={kots}
         tableId={currentTable.id}
         outletId={outletId}
@@ -476,55 +486,11 @@ const POSScreen = ({ navigation }: Props) => {
                     </View>
                   )}
                   <View style={styles.cartTabContent}>
-                    <View style={styles.categoryListWrap}>
-                      <ScrollView
-                        style={styles.categoryList}
-                        showsVerticalScrollIndicator={false}
-                      >
-                        <Pressable
-                          style={({ pressed }) => [
-                            styles.categoryChip,
-                            !selectedCategoryId && styles.categoryChipActive,
-                            { opacity: pressed ? 0.7 : 1 },
-                          ]}
-                          onPress={() => selectCategory(null)}
-                        >
-                          <Text
-                            style={[
-                              styles.categoryChipText,
-                              !selectedCategoryId &&
-                                styles.categoryChipTextActive,
-                            ]}
-                            numberOfLines={1}
-                          >
-                            All
-                          </Text>
-                        </Pressable>
-                        {categories.map(cat => (
-                          <Pressable
-                            key={cat.id}
-                            style={({ pressed }) => [
-                              styles.categoryChip,
-                              selectedCategoryId === cat.id &&
-                                styles.categoryChipActive,
-                              { opacity: pressed ? 0.7 : 1 },
-                            ]}
-                            onPress={() => selectCategory(cat.id)}
-                          >
-                            <Text
-                              style={[
-                                styles.categoryChipText,
-                                selectedCategoryId === cat.id &&
-                                  styles.categoryChipTextActive,
-                              ]}
-                              numberOfLines={2}
-                            >
-                              {cat.name}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </ScrollView>
-                    </View>
+                    <CategorySelector
+                      categories={categories}
+                      selectedCategoryId={selectedCategoryId}
+                      onSelectCategory={selectCategory}
+                    />
                     <View style={styles.dishesWrap}>
                       <View style={styles.searchWrap}>
                         <SearchInput
@@ -590,7 +556,7 @@ const POSScreen = ({ navigation }: Props) => {
                   />
                 </View>
               )}
-              {hasKot && !showAddMoreItems ? (
+              {!isEmptyTable && !showAddMoreItems ? (
                 <View style={styles.cartBar}>
                   {cartItems.length > 0 && (
                     <Text style={styles.cartSummary}>
@@ -651,7 +617,7 @@ const POSScreen = ({ navigation }: Props) => {
                 kots.length === 0 && styles.kotToolbarBtnDisabled,
                 { opacity: pressed ? 0.7 : 1 },
               ]}
-              onPress={() => setKotTransferVisible(true)}
+              onPress={() => setModal({ type: 'kotTransfer' })}
               disabled={kots.length === 0}
             >
               <Text style={styles.kotToolbarBtnText}>Item transfer</Text>
@@ -662,7 +628,7 @@ const POSScreen = ({ navigation }: Props) => {
                 kots.length === 0 && styles.kotToolbarBtnDisabled,
                 { opacity: pressed ? 0.7 : 1 },
               ]}
-              onPress={() => setKotDeleteVisible(true)}
+              onPress={() => setModal({ type: 'kotDelete' })}
               disabled={kots.length === 0}
             >
               <Text style={styles.kotToolbarBtnText}>Delete items</Text>
@@ -684,8 +650,7 @@ const POSScreen = ({ navigation }: Props) => {
                   key={kot.id}
                   kot={kot}
                   onReprint={() => {
-                    setReprintKotId(kot.id);
-                    setReprintKotNumber(kot.kotInvoiceNumber);
+                    setModal({ type: 'reprint', data: { id: kot.id, number: kot.kotInvoiceNumber } });
                   }}
                 />
               ))
@@ -722,7 +687,7 @@ const POSScreen = ({ navigation }: Props) => {
         </>
       )}
 
-      {activeTab === 'bill' && (
+      {activeTab === 'bill' && showBillTab && (
         <View style={styles.billTabContent}>
           {billRefreshing || previewLoading ? (
             <View style={styles.billLoading}>
@@ -835,47 +800,47 @@ const POSScreen = ({ navigation }: Props) => {
       )}
 
       <ItemCustomiseModal
-        visible={Boolean(customiseItem)}
-        item={customiseItem}
-        onClose={() => setCustomiseItem(null)}
+        visible={modal.type === 'customise'}
+        item={modal.type === 'customise' ? modal.data : null}
+        onClose={() => setModal({ type: 'none' })}
         onAdd={handleAddToCart}
       />
 
       <RepeatLastOrNewModal
-        visible={Boolean(repeatItem)}
-        itemName={repeatItem?.name ?? ''}
-        onClose={() => setRepeatItem(null)}
+        visible={modal.type === 'repeat'}
+        itemName={(modal.type === 'repeat' ? modal.data.name : '')}
+        onClose={() => setModal({ type: 'none' })}
         onRepeatLast={() => {
-          if (!currentTable || !repeatItem) return;
-          const similar = findSimilarItems(currentTable.id, repeatItem.id);
+          if (!currentTable || modal.type !== 'repeat' || !modal.data) return;
+          const similar = findSimilarItems(currentTable.id, modal.data.id);
           const last = similar[similar.length - 1];
           if (last) {
             const config = cartLineToConfig(last);
-            addToCart(currentTable.id, repeatItem, config, 1);
+            addToCart(currentTable.id, modal.data, config, 1);
           }
-          setRepeatItem(null);
+          setModal({ type: 'none' });
         }}
         onAddNew={() => {
-          if (repeatItem) setCustomiseItem(repeatItem);
-          setRepeatItem(null);
+          if (modal.type === 'repeat' && modal.data) setModal({ type: 'customise', data: modal.data });
+          setModal({ type: 'none' });
         }}
       />
 
       <DecrementLineModal
-        visible={Boolean(decrementContext)}
-        itemName={decrementContext?.itemName ?? ''}
-        lines={decrementContext?.lines ?? []}
-        onClose={() => setDecrementContext(null)}
+        visible={modal.type === 'decrement'}
+        itemName={modal.type === 'decrement' ? modal.data.itemName : ''}
+        lines={modal.type === 'decrement' ? modal.data.lines : []}
+        onClose={() => setModal({ type: 'none' })}
         onSelectLine={cartId => {
           if (currentTable) updateQuantity(currentTable.id, cartId, -1);
-          setDecrementContext(null);
+          setModal({ type: 'none' });
         }}
       />
 
       <CartModal
-        visible={cartModalVisible}
+        visible={modal.type === 'cart'}
         items={cartItems}
-        onClose={() => setCartModalVisible(false)}
+        onClose={() => setModal({ type: 'none' })}
         onUpdateQuantity={(cartId, delta) =>
           currentTable && updateQuantity(currentTable.id, cartId, delta)
         }
@@ -891,57 +856,34 @@ const POSScreen = ({ navigation }: Props) => {
       />
 
       <KotReprintConfirmModal
-        visible={Boolean(reprintKotId)}
-        kotNumber={reprintKotNumber ?? undefined}
+        visible={modal.type === 'reprint'}
+        kotNumber={modal.type === 'reprint' ? modal.data.number : undefined}
         onClose={() => {
-          setReprintKotId(null);
-          setReprintKotNumber(null);
+          setModal({ type: 'none' });
         }}
         onConfirm={handleReprintKot}
         isReprinting={isReprinting}
       />
 
-      {addItemsModalVisible && (
+      {modal.type === 'addItems' && (
         <Modal visible animationType="slide" transparent={false}>
           <View style={styles.addItemsModal}>
             <View style={styles.addItemsModalHeader}>
               <Text style={styles.addItemsModalTitle}>Add items</Text>
               <Pressable
                 style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                onPress={() => setAddItemsModalVisible(false)}
+                onPress={() => setModal({ type: 'none' })}
               >
                 <Text style={styles.addItemsModalClose}>Done</Text>
               </Pressable>
             </View>
-            <ScrollView
-              horizontal
-              style={styles.categories}
-              showsHorizontalScrollIndicator={false}
-            >
-              <Pressable
-                style={({ pressed }) => [
-                  styles.catChip,
-                  !selectedCategoryId && styles.catChipActive,
-                  { opacity: pressed ? 0.7 : 1 },
-                ]}
-                onPress={() => selectCategory(null)}
-              >
-                <Text style={styles.catChipText}>All</Text>
-              </Pressable>
-              {categories.map(cat => (
-                <Pressable
-                  key={cat.id}
-                  style={({ pressed }) => [
-                    styles.catChip,
-                    selectedCategoryId === cat.id && styles.catChipActive,
-                    { opacity: pressed ? 0.7 : 1 },
-                  ]}
-                  onPress={() => selectCategory(cat.id)}
-                >
-                  <Text style={styles.catChipText}>{cat.name}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+            <View style={{ height: 60 }}>
+              <CategorySelector
+                categories={categories}
+                selectedCategoryId={selectedCategoryId}
+                onSelectCategory={selectCategory}
+              />
+            </View>
             {(isLoadingCategories || isLoadingItems) &&
             filteredItems.length === 0 ? (
               <View style={styles.loading}>
@@ -981,54 +923,11 @@ const POSScreen = ({ navigation }: Props) => {
               </Pressable>
             </View>
             <View style={styles.cartTabContent}>
-              <View style={styles.categoryListWrap}>
-                <ScrollView
-                  style={styles.categoryList}
-                  showsVerticalScrollIndicator={false}
-                >
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.categoryChip,
-                      !selectedCategoryId && styles.categoryChipActive,
-                      { opacity: pressed ? 0.7 : 1 },
-                    ]}
-                    onPress={() => selectCategory(null)}
-                  >
-                    <Text
-                      style={[
-                        styles.categoryChipText,
-                        !selectedCategoryId && styles.categoryChipTextActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      All
-                    </Text>
-                  </Pressable>
-                  {categories.map(cat => (
-                    <Pressable
-                      key={cat.id}
-                      style={({ pressed }) => [
-                        styles.categoryChip,
-                        selectedCategoryId === cat.id &&
-                          styles.categoryChipActive,
-                        { opacity: pressed ? 0.7 : 1 },
-                      ]}
-                      onPress={() => selectCategory(cat.id)}
-                    >
-                      <Text
-                        style={[
-                          styles.categoryChipText,
-                          selectedCategoryId === cat.id &&
-                            styles.categoryChipTextActive,
-                        ]}
-                        numberOfLines={2}
-                      >
-                        {cat.name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
+              <CategorySelector
+                categories={categories}
+                selectedCategoryId={selectedCategoryId}
+                onSelectCategory={selectCategory}
+              />
               <View style={styles.dishesWrap}>
                 <View style={styles.searchWrap}>
                   <SearchInput

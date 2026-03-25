@@ -69,8 +69,13 @@ export default function TableActionsModal({
               <Text style={styles.actionSubtext}>Go back to table list</Text>
             </Pressable>
             <Pressable
-              style={({ pressed }) => [styles.action, { opacity: pressed ? 0.7 : 1 }]}
+              style={({ pressed }) => [
+                styles.action,
+                currentTable.tableStatus === 'BILL_PRINTED' && styles.actionDisabled,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={() => {
+                if (currentTable.tableStatus === 'BILL_PRINTED') return;
                 if (hasBillGenerated) {
                   setModal({ type: 'warning', warningContext: 'transfer' });
                 } else {
@@ -80,15 +85,38 @@ export default function TableActionsModal({
               }}
             >
               <View style={styles.actionHeader}>
-                <Text style={styles.actionText}>Transfer table</Text>
-                {hasBillGenerated && <Text style={styles.lockIcon}>🔒</Text>}
+                <Text
+                  style={[
+                    styles.actionText,
+                    currentTable.tableStatus === 'BILL_PRINTED' && styles.actionTextDisabled,
+                  ]}
+                >
+                  Transfer table
+                </Text>
+                {hasBillGenerated && currentTable.tableStatus !== 'BILL_PRINTED' && (
+                  <Text style={styles.lockIcon}>🔒</Text>
+                )}
               </View>
               <Text style={styles.actionSubtext}>Move entire order to another table</Text>
-              {hasBillGenerated && <Text style={styles.blockedText}>Blocked: Bill already generated</Text>}
+              {currentTable.tableStatus === 'BILL_PRINTED' ? (
+                <Text style={styles.warningText}>
+                  Warning: You cannot perform this action because bill is printed
+                </Text>
+              ) : (
+                hasBillGenerated && (
+                  <Text style={styles.blockedText}>Blocked: Bill already generated</Text>
+                )
+              )}
             </Pressable>
+
             <Pressable
-              style={({ pressed }) => [styles.action, { opacity: pressed ? 0.7 : 1 }]}
+              style={({ pressed }) => [
+                styles.action,
+                currentTable.tableStatus === 'BILL_PRINTED' && styles.actionDisabled,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
               onPress={() => {
+                if (currentTable.tableStatus === 'BILL_PRINTED') return;
                 if (hasBillGenerated) {
                   setModal({ type: 'warning', warningContext: 'merge' });
                 } else {
@@ -98,11 +126,30 @@ export default function TableActionsModal({
               }}
             >
               <View style={styles.actionHeader}>
-                <Text style={styles.actionText}>Merge table</Text>
-                {hasBillGenerated && <Text style={styles.lockIcon}>🔒</Text>}
+                <Text
+                  style={[
+                    styles.actionText,
+                    currentTable.tableStatus === 'BILL_PRINTED' && styles.actionTextDisabled,
+                  ]}
+                >
+                  Merge table
+                </Text>
+                {hasBillGenerated && currentTable.tableStatus !== 'BILL_PRINTED' && (
+                  <Text style={styles.lockIcon}>🔒</Text>
+                )}
               </View>
-              <Text style={styles.actionSubtext}>Combine orders from other tables into this one</Text>
-              {hasBillGenerated && <Text style={styles.blockedText}>Blocked: Bill already generated</Text>}
+              <Text style={styles.actionSubtext}>
+                Combine orders from other tables into this one
+              </Text>
+              {currentTable.tableStatus === 'BILL_PRINTED' ? (
+                <Text style={styles.warningText}>
+                  Warning: You cannot perform this action because bill is printed
+                </Text>
+              ) : (
+                hasBillGenerated && (
+                  <Text style={styles.blockedText}>Blocked: Bill already generated</Text>
+                )
+              )}
             </Pressable>
           </View>
         </View>
@@ -156,6 +203,23 @@ const styles = StyleSheet.create({
   actionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   actionText: { fontSize: 16, fontWeight: '700', color: '#F8FAFC' },
   actionSubtext: { fontSize: 12, color: '#94A3B8', marginTop: 4 },
+  actionDisabled: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginTop: 8,
+    borderBottomWidth: 0,
+  },
+  actionTextDisabled: {
+    color: '#ef4444',
+    textDecorationLine: 'line-through',
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#ef4444',
+    fontWeight: '700',
+    marginTop: 8,
+  },
   lockIcon: { fontSize: 16 },
   blockedText: { fontSize: 11, color: '#ef4444', fontWeight: '700', marginTop: 2, textTransform: 'uppercase' },
 });

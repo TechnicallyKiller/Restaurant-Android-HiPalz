@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { getSettledBills } from '../api/billApi';
-import { getBillById } from '../api/billApi';
+import { useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getSettledBills, getBillById } from '../api/billApi';
 import { useAuthStore } from '../store/authStore';
 import { handleApiError, getErrorMessage } from '../utils/errorHandling';
 import type { SettledBill, BillingHistoryFilters, BillPreviewData } from '../api/types';
@@ -21,8 +21,6 @@ export interface SplitBillGroup {
 }
 
 export type BillingRow = SingleBillRow | SplitBillGroup;
-
-// Moved to dateUtils.ts
 
 // ----- Transform / group bills -----
 function transformBills(bills: SettledBill[]): BillingRow[] {
@@ -74,13 +72,9 @@ function normalizeBill(bill: SettledBill): SettledBill {
 // ----- Hook -----
 export function useBillingHistory() {
   const outletId = useAuthStore(s => s.user?.outletId ?? '');
-  const [rows, setRows] = useState<BillingRow[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [dateRange, setDateRange] = useState<{ from: number; to: number }>(
-    getRangeForPreset('today', DEFAULT_BILLING_START_TIME)
+    getRangeForPreset('today', DEFAULT_BILLING_START_TIME),
   );
   const [filters, setFilters] = useState<BillingHistoryFilters>({});
 
@@ -88,44 +82,40 @@ export function useBillingHistory() {
   const [detailBill, setDetailBill] = useState<BillPreviewData | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  const fetchBills = useCallback(async (pageNum: number = 1) => {
-    if (!outletId) {
-      setRows([]);
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
-    try {
+  const query = useQuery({
+    queryKey: ['billingHistory', outletId, dateRange.from, dateRange.to, page, filters],
+    queryFn: async () => {
       const data = await getSettledBills(
         outletId,
         dateRange.from,
         dateRange.to,
-        pageNum,
+        page,
         20,
         filters,
       );
-      const bills = Array.isArray(data?.bills) ? data.bills : Array.isArray(data) ? (data as unknown as SettledBill[]) : [];
-      setRows(transformBills(bills));
-      setTotalPages(data?.totalPages ?? 1);
-      setPage(data?.currentPage ?? pageNum);
-    } catch (err) {
-      handleApiError(err);
-      setError(getErrorMessage(err));
-      setRows([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [outletId, dateRange.from, dateRange.to, filters]);
+      const bills = Array.isArray(data?.bills)
+        ? data.bills
+        : Array.isArray(data)
+          ? (data as unknown as SettledBill[])
+          : [];
+      return {
+        rows: transformBills(bills),
+        totalPages: data?.totalPages ?? 1,
+        currentPage: data?.currentPage ?? page,
+      };
+    },
+    enabled: !!outletId,
+    placeholderData: (prev: any) => prev,
+  });
 
-  useEffect(() => {
-    fetchBills(1);
-  }, [fetchBills]);
+  const rows = query.data?.rows ?? [];
+  const totalPages = query.data?.totalPages ?? 1;
 
   const nextPage = () => {
-    if (page < totalPages) fetchBills(page + 1);
+    if (page < totalPages) setPage(p => p + 1);
   };
   const prevPage = () => {
-    if (page > 1) fetchBills(page - 1);
+    if (page > 1) setPage(p => p - 1);
   };
 
   const fetchDetail = async (billId: string) => {
@@ -144,8 +134,8 @@ export function useBillingHistory() {
 
   return {
     rows,
-    isLoading,
-    error,
+    isLoading: query.isLoading,
+    error: query.error ? getErrorMessage(query.error) : null,
     page,
     totalPages,
     nextPage,
@@ -154,7 +144,7 @@ export function useBillingHistory() {
     setDateRange,
     filters,
     setFilters,
-    refetch: () => fetchBills(page),
+    refetch: query.refetch,
     detailBill,
     detailLoading,
     fetchDetail,

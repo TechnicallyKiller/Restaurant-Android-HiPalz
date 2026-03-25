@@ -1,84 +1,78 @@
-import { useCallback, useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getCategories, getAreaItems } from '../api/menuApi';
 import { useAuthStore } from '../store/authStore';
 import { useTableStore } from '../store/tableStore';
 import { usePosStore } from '../store/posStore';
-import { handleApiError } from '../utils/errorHandling';
+import { useDebounce } from './useDebounce';
 
 export function useCategories() {
   const outletId = useAuthStore(s => s.user?.outletId ?? '');
-  const {
-    categories,
-    isLoadingCategories,
-    setCategories,
-    setLoadingCategories,
-  } = usePosStore();
 
-  const fetchCategories = useCallback(async () => {
-    if (!outletId) return;
-    setLoadingCategories(true);
-    try {
-      const data = await getCategories(outletId);
-      setCategories(data);
-    } catch (err) {
-      handleApiError(err);
-    } finally {
-      setLoadingCategories(false);
-    }
-  }, [outletId, setCategories, setLoadingCategories]);
+  const query = useQuery({
+    queryKey: ['categories', outletId],
+    queryFn: () => getCategories(outletId),
+    enabled: !!outletId,
+  });
 
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  return { categories, isLoadingCategories, refetch: fetchCategories };
+  return {
+    categories: query.data ?? [],
+    isLoadingCategories: query.isLoading,
+    refetch: query.refetch,
+  };
 }
 
 export function useMenuItems() {
   const outletId = useAuthStore(s => s.user?.outletId ?? '');
   const currentTable = useTableStore(s => s.currentTable);
   const areaId = currentTable?.areaId ?? '';
-  const {
-    items,
-    filteredItems,
-    selectedCategoryId,
-    itemSearchQuery,
-    isLoadingItems,
-    setItems,
-    selectCategory,
-    setItemSearchQuery,
-    setLoadingItems,
-  } = usePosStore();
 
-  const fetchItems = useCallback(async () => {
-    if (!outletId || !areaId) {
-      setItems([]);
-      return;
-    }
-    setLoadingItems(true);
-    try {
-      const data = await getAreaItems(outletId, areaId);
-      setItems(data);
-    } catch (err) {
-      handleApiError(err);
-      setItems([]);
-    } finally {
-      setLoadingItems(false);
-    }
-  }, [outletId, areaId, setItems, setLoadingItems]);
+  const selectedCategoryId = usePosStore(s => s.selectedCategoryId);
+  const itemSearchQuery = usePosStore(s => s.itemSearchQuery);
+  const selectCategory = usePosStore(s => s.selectCategory);
+  const setItemSearchQuery = usePosStore(s => s.setItemSearchQuery);
 
+  const debouncedSearch = useDebounce(itemSearchQuery, 300);
+
+  const query = useQuery({
+    queryKey: ['menuItems', outletId, areaId],
+    queryFn: () => getAreaItems(outletId, areaId),
+    enabled: !!outletId && !!areaId,
+  });
+
+  const items = query.data ?? [];
+
+  // Auto-select first category when items load
   useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+    if (!selectedCategoryId && items.length > 0) {
+      selectCategory(items[0].categoryId ?? null);
+    }
+  }, [items, selectedCategoryId, selectCategory]);
+
+  const filteredItems = useMemo(() => {
+    let list = items;
+    if (selectedCategoryId) {
+      list = list.filter(item => item.categoryId === selectedCategoryId);
+    }
+    if (debouncedSearch) {
+      const q = debouncedSearch.trim().toLowerCase();
+      list = list.filter(
+        item =>
+          item.name.toLowerCase().includes(q) ||
+          (item.description ?? '').toLowerCase().includes(q),
+      );
+    }
+    return list;
+  }, [items, selectedCategoryId, debouncedSearch]);
 
   return {
     items,
     filteredItems,
     selectedCategoryId,
     itemSearchQuery,
-    isLoadingItems,
+    isLoadingItems: query.isLoading,
     selectCategory,
     setItemSearchQuery,
-    refetch: fetchItems,
+    refetch: query.refetch,
   };
 }

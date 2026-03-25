@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   billPreview,
   billGenerate,
@@ -44,6 +45,7 @@ export function useBillGenerate() {
   const staffId = useAuthStore(s => s.user?.id ?? '');
   const currentTable = useTableStore(s => s.currentTable);
   const setBillForTable = useBillStore(s => s.setBillForTable);
+  const queryClient = useQueryClient();
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +57,7 @@ export function useBillGenerate() {
     try {
       const data = await billGenerate(currentTable.id, staffId);
       setBillForTable(currentTable.id, data);
+      queryClient.invalidateQueries({ queryKey: ['bill', currentTable.id] });
       return data;
     } catch (err) {
       handleApiError(err);
@@ -63,7 +66,7 @@ export function useBillGenerate() {
     } finally {
       setIsGenerating(false);
     }
-  }, [currentTable, staffId, setBillForTable]);
+  }, [currentTable, staffId, setBillForTable, queryClient]);
 
   return { generate, isGenerating, error };
 }
@@ -118,22 +121,16 @@ export function usePayBill() {
 
 export function usePaymentModes() {
   const outletId = useAuthStore(s => s.user?.outletId ?? '');
-  const [modes, setModes] = useState<PaymentModeItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const fetch = useCallback(async () => {
-    if (!outletId) return;
-    setIsLoading(true);
-    try {
-      const data = await getPaymentModes(outletId);
-      setModes(data);
-    } catch (err) {
-      handleApiError(err);
-      setModes([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [outletId]);
+  const query = useQuery({
+    queryKey: ['paymentModes', outletId],
+    queryFn: () => getPaymentModes(outletId),
+    enabled: !!outletId,
+  });
 
-  return { modes, isLoading, refetch: fetch };
+  return {
+    modes: query.data ?? [],
+    isLoading: query.isLoading,
+    refetch: query.refetch,
+  };
 }

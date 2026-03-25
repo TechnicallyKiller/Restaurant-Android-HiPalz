@@ -94,6 +94,7 @@ export interface ItemAddon {
 
 export interface ItemVariant {
   id: string;
+  _id?: string;
   name: string;
   price?: number;
   priceModifier?: number;
